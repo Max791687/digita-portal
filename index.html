@@ -193,6 +193,13 @@
         </div>
         <div id="dashboardUpcomingList" class="space-y-2"><p class="text-xs text-slate-500">Loading your schedule…</p></div>
       </div>
+      <div class="mt-4 rounded-xl border border-rose-500/25 bg-[#0c1220]/80 p-3 sm:p-4">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <h3 class="text-sm font-bold text-rose-300 flex items-center gap-2"><i class="ph-bold ph-chat-centered-text"></i> Revision Inbox — who requested what</h3>
+          <span id="dashboardRevisionCount" class="text-[10px] text-rose-300">0 pending</span>
+        </div>
+        <div id="dashboardRevisionList" class="space-y-2"><p class="text-xs text-slate-500">No revision requests.</p></div>
+      </div>
     </section>
     <!-- VIEW 1: TASKS -->
     <div id="tasksViewContainer">
@@ -362,6 +369,12 @@
       <p id="changeTaskTargetMember" class="text-xs text-slate-400 mb-2 font-medium">Editor: Vijay</p>
 
       <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Changes Requested By (Who is giving feedback?) *</label>
+          <select id="changeRequestedByInput" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-rose-500">
+            <option value="Pavan">Pavan</option><option value="Vijay">Vijay</option><option value="Tushar">Tushar</option><option value="Mirtunjay">Mirtunjay</option><option value="Shweta">Shweta</option><option value="Vanita">Vanita</option><option value="Manoj">Manoj</option><option value="Ashish">Ashish</option>
+          </select>
+        </div>
         <div>
           <label class="block font-semibold text-slate-300 mb-1">Exact Changes Needed *</label>
           <textarea id="changeNotesInput" rows="3" required placeholder="CHANGES THE ONE FRAME, update sound at 0:12..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl p-2.5 text-white focus:outline-none focus:border-rose-500"></textarea>
@@ -809,6 +822,20 @@ function clearTeamPin() {
       events.sort((a, b) => a.sortDate - b.sortDate);
       const todayStart = new Date(today + 'T00:00:00').getTime();
       const upcoming = events.filter(e => e.sortDate >= todayStart).slice(0, 5);
+      const revisionList = document.getElementById('dashboardRevisionList');
+      const revisionCount = document.getElementById('dashboardRevisionCount');
+      if (revisionCount) revisionCount.textContent = changes.length + ' pending';
+      if (revisionList) revisionList.innerHTML = changes.length ? changes.map(t =>
+        '<div class="rounded-lg border border-rose-500/20 bg-[#111827] px-3 py-2.5">' +
+          '<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">' +
+            '<div class="text-xs font-bold text-white break-words">' + escapeHtml(t.title || 'Untitled task') + '</div>' +
+            '<span class="text-[10px] rounded-full bg-rose-500/10 text-rose-300 px-2 py-1 shrink-0">Assigned to: ' + escapeHtml(t.assignedTo || 'Unassigned') + '</span>' +
+          '</div>' +
+          '<div class="text-[11px] text-slate-400 mt-1">Changes requested by <strong class="text-amber-300">' + escapeHtml(t.revisionBy || 'Not recorded (older request)') + '</strong>' +
+          (t.revisionAt ? ' · ' + escapeHtml(new Date(t.revisionAt).toLocaleString()) : '') + '</div>' +
+          '<div class="text-xs text-slate-200 mt-2 whitespace-pre-wrap break-words">' + escapeHtml(t.revisionNotes || 'No change notes recorded.') + '</div>' +
+        '</div>'
+      ).join('') : '<div class="text-xs text-slate-500 py-3 text-center">No pending revision requests. All clear!</div>';
       const list = document.getElementById('dashboardUpcomingList');
       if (!list) return;
       list.innerHTML = upcoming.length ? upcoming.map(e =>
@@ -1130,6 +1157,7 @@ function clearTeamPin() {
       document.getElementById('changeTaskId').value = t.id;
       document.getElementById('changeTaskTargetMember').innerText = `Editor: ${t.assignedTo} | Video: "${t.title}"`;
       document.getElementById('changeNotesInput').value = t.revisionNotes || '';
+      document.getElementById('changeRequestedByInput').value = t.revisionBy || 'Pavan';
       document.getElementById('changesModal').classList.remove('hidden');
     }
 
@@ -1146,8 +1174,11 @@ function clearTeamPin() {
       if (t) {
         t.status = 'changes_required';
         t.revisionNotes = notes;
+        t.revisionBy = document.getElementById('changeRequestedByInput').value;
+        t.revisionAt = new Date().toISOString();
+        recordActivity('Revision requested', 'From: ' + t.revisionBy + ' → To: ' + (t.assignedTo || 'Unassigned') + ' | Video: ' + (t.title || 'Untitled') + ' | Changes: ' + notes);
         playChime();
-        addNotification(`🔔 Revisions requested for ${t.assignedTo}: "${notes}"`);
+        addNotification(`🔔 Changes from ${t.revisionBy} for ${t.assignedTo}: "${notes}"`);
         closeChangesModal();
         renderTasks();
         updateCounts();
