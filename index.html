@@ -473,7 +473,36 @@
     ];
 
     // High Reliability Multi-Device Cloud Sync Node
-    const CLOUD_API = "https://pavan-digital-hub-default-rtdb.firebaseio.com/workspace.json";
+    const CLOUD_API = "https://digital-team-sync.max791687.workers.dev/workspace";
+
+// Shared Team PIN is kept only for this browser tab session, never in public source.
+let teamPin = "";
+let pinPrompted = false;
+try {
+  teamPin = sessionStorage.getItem("digital_team_pin") || "";
+} catch (e) {}
+
+function getTeamPin(forcePrompt = false) {
+  if (teamPin) return teamPin;
+  if (pinPrompted && !forcePrompt) return "";
+  pinPrompted = true;
+
+  const entered = window.prompt("Enter the shared Digital Team PIN:");
+  if (!entered || !entered.trim()) return "";
+
+  teamPin = entered.trim();
+  try {
+    sessionStorage.setItem("digital_team_pin", teamPin);
+  } catch (e) {}
+  return teamPin;
+}
+
+function clearTeamPin() {
+  teamPin = "";
+  try {
+    sessionStorage.removeItem("digital_team_pin");
+  } catch (e) {}
+}
 
     let tasks = [];
     let shoots = [];
@@ -502,10 +531,17 @@
       } catch (e) {}
     }
 
-    // --- PUSH DATA TO CLOUD (ALL DEVICES UPDATE IMMEDIATELY) ---
+    // --- PUSH DATA TO CLOUDFLARE WORKER ---
     async function pushToCloud() {
       isCloudUpdating = true;
-      setSyncStatus("Broadcasting to team...", "amber");
+      setSyncStatus("Saving team updates...", "amber");
+
+      const pin = getTeamPin();
+      if (!pin) {
+        setSyncStatus("Team PIN needed — click Sync to retry", "slate");
+        isCloudUpdating = false;
+        return;
+      }
 
       const payload = {
         tasks,
@@ -515,41 +551,80 @@
         updatedAt: Date.now()
       };
 
-      // Local backup first
-      localStorage.setItem('dd_tasks_v2', JSON.stringify(tasks));
-      localStorage.setItem('dd_shoots_v2', JSON.stringify(shoots));
-      localStorage.setItem('dd_tools_v2', JSON.stringify(tools));
-      localStorage.setItem('dd_notifs_v2', JSON.stringify(notifications));
-
+      // Keep a local backup, but the shared D1 database is the source of team sync.
       try {
-        await fetch(CLOUD_API, {
+        localStorage.setItem('dd_tasks_v2', JSON.stringify(tasks));
+        localStorage.setItem('dd_shoots_v2', JSON.stringify(shoots));
+        localStorage.setItem('dd_tools_v2', JSON.stringify(tools));
+        localStorage.setItem('dd_notifs_v2', JSON.stringify(notifications));
+
+        const res = await fetch(CLOUD_API, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + pin
+          },
           body: JSON.stringify(payload)
         });
+
+        if (res.status === 401) {
+          clearTeamPin();
+          pinPrompted = true;
+          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
+          return;
+        }
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          throw new Error(detail.error || 'Cloud save failed (' + res.status + ')');
+        }
+
         setSyncStatus("Live Synced with Team", "emerald");
       } catch (e) {
-        setSyncStatus("Saved in Memory & Local", "slate");
+        console.error("Cloud save failed:", e);
+        setSyncStatus("Cloud save failed — local backup kept", "slate");
       } finally {
         isCloudUpdating = false;
       }
     }
 
-    // --- PULL DATA FROM CLOUD (EVERY 3 SECONDS) ---
-    async function pullFromCloud(silent = true) {
+    // --- PULL DATA FROM CLOUDFLARE WORKER ---
+    async function pullFromCloud(silent = true, askForPin = false) {
       if (isCloudUpdating) return;
+      const pin = getTeamPin(askForPin);
+
+      if (!pin) {
+        if (!silent) setSyncStatus("Team PIN needed — click Sync", "slate");
+        return;
+      }
+
       if (!silent) setSyncStatus("Checking team updates...", "amber");
 
       try {
-        const res = await fetch(CLOUD_API + '?t=' + Date.now());
-        if (!res.ok) return;
-        const data = await res.json();
+        const res = await fetch(CLOUD_API + '?t=' + Date.now(), {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + pin
+          },
+          cache: 'no-store'
+        });
 
-        if (data) {
-          if (Array.isArray(data.tasks)) tasks = data.tasks;
-          if (Array.isArray(data.shoots)) shoots = data.shoots;
-          if (Array.isArray(data.tools)) tools = data.tools;
-          if (Array.isArray(data.notifications)) notifications = data.notifications;
+        if (res.status === 401) {
+          clearTeamPin();
+          pinPrompted = true;
+          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
+          return;
+        }
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          throw new Error(detail.error || 'Cloud load failed (' + res.status + ')');
+        }
+
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          tasks = Array.isArray(data.tasks) ? data.tasks : [];
+          shoots = Array.isArray(data.shoots) ? data.shoots : [];
+          tools = Array.isArray(data.tools) ? data.tools : [];
+          notifications = Array.isArray(data.notifications) ? data.notifications : [];
 
           localStorage.setItem('dd_tasks_v2', JSON.stringify(tasks));
           localStorage.setItem('dd_shoots_v2', JSON.stringify(shoots));
@@ -560,7 +635,8 @@
           setSyncStatus("Live Synced with Team", "emerald");
         }
       } catch (e) {
-        // network fallback
+        console.error("Cloud load failed:", e);
+        if (!silent) setSyncStatus("Sync failed — check connection", "slate");
       }
     }
 
@@ -582,7 +658,7 @@
     function forceCloudSync() {
       const icon = document.getElementById('syncIcon');
       if (icon) icon.classList.add('animate-spin');
-      pullFromCloud(false).then(() => {
+      pullFromCloud(false, true).then(() => {
         setTimeout(() => {
           if (icon) icon.classList.remove('animate-spin');
         }, 500);
@@ -610,8 +686,8 @@
       renderMemberCarousel();
       renderAll();
 
-      // Pull from shared database right now
-      pullFromCloud(false);
+      // Connect to the shared database and ask for the Team PIN once.
+      pullFromCloud(false, true);
 
       // Auto sync every 3 seconds for zero delay
       setInterval(() => pullFromCloud(true), 3000);
