@@ -164,6 +164,36 @@
       <button onclick="document.getElementById('backupImportInput').click()" class="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-2"><i class="ph-bold ph-upload-simple"></i> Restore Backup</button>
       <input id="backupImportInput" type="file" accept=".json,application/json" class="hidden" onchange="restorePortalBackup(event)">
     </div>
+
+    <!-- SMART DASHBOARD: reads existing task and shoot data; does not change stored records -->
+    <section id="smartDashboard" class="mb-6 rounded-2xl border border-[#1f293d] bg-gradient-to-br from-[#111827] to-[#0c1220] p-4 sm:p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-orange-400">Team overview</p>
+          <h2 class="text-lg sm:text-xl font-bold text-white mt-1">Smart Dashboard</h2>
+          <p id="dashboardDateLabel" class="text-xs text-slate-400 mt-1">Your team at a glance</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="openTaskModal()" class="px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5"><i class="ph-bold ph-plus-circle"></i> Quick Task</button>
+          <button onclick="switchMainTab('shoots');openShootModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-slate-200 text-xs font-bold flex items-center gap-1.5"><i class="ph-bold ph-calendar-plus"></i> Schedule Shoot</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div class="rounded-xl border border-[#1f293d] bg-[#0c1220] p-3"><div class="text-[10px] uppercase tracking-wide text-slate-400">Active tasks</div><div id="dashActiveTasks" class="text-2xl font-black text-white mt-1">0</div><div class="text-[10px] text-slate-500 mt-1">Not completed</div></div>
+        <div class="rounded-xl border border-[#1f293d] bg-[#0c1220] p-3"><div class="text-[10px] uppercase tracking-wide text-slate-400">Due today</div><div id="dashDueToday" class="text-2xl font-black text-amber-300 mt-1">0</div><div class="text-[10px] text-slate-500 mt-1">Tasks due today</div></div>
+        <div class="rounded-xl border border-[#1f293d] bg-[#0c1220] p-3"><div class="text-[10px] uppercase tracking-wide text-slate-400">Overdue</div><div id="dashOverdue" class="text-2xl font-black text-rose-400 mt-1">0</div><div class="text-[10px] text-slate-500 mt-1">Past deadline</div></div>
+        <div class="rounded-xl border border-[#1f293d] bg-[#0c1220] p-3"><div class="text-[10px] uppercase tracking-wide text-slate-400">Changes needed</div><div id="dashChanges" class="text-2xl font-black text-purple-300 mt-1">0</div><div class="text-[10px] text-slate-500 mt-1">Awaiting revision</div></div>
+        <div class="rounded-xl border border-[#1f293d] bg-[#0c1220] p-3"><div class="text-[10px] uppercase tracking-wide text-slate-400">Completed</div><div id="dashCompleted" class="text-2xl font-black text-emerald-300 mt-1">0</div><div class="text-[10px] text-slate-500 mt-1">Finished tasks</div></div>
+        <div class="rounded-xl border border-[#1f293d] bg-[#0c1220] p-3"><div class="text-[10px] uppercase tracking-wide text-slate-400">Shoots today</div><div id="dashShootsToday" class="text-2xl font-black text-sky-300 mt-1">0</div><div class="text-[10px] text-slate-500 mt-1">Scheduled shoots</div></div>
+      </div>
+      <div class="mt-4 rounded-xl border border-[#1f293d] bg-[#0c1220]/80 p-3 sm:p-4">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ph-bold ph-calendar-check text-orange-400"></i> Upcoming deadlines & shoots</h3>
+          <span class="text-[10px] text-slate-500">Next 5 items</span>
+        </div>
+        <div id="dashboardUpcomingList" class="space-y-2"><p class="text-xs text-slate-500">Loading your schedule…</p></div>
+      </div>
+    </section>
     <!-- VIEW 1: TASKS -->
     <div id="tasksViewContainer">
       <!-- Member Carousel -->
@@ -712,12 +742,92 @@ function clearTeamPin() {
       setInterval(() => pullFromCloud(true), 3000);
     };
 
+    function getDashboardLocalDate(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    }
+
+    // Dashboard calculations are derived from existing tasks/shoots; no stored data is rewritten.
+    function renderDashboard() {
+      const today = getDashboardLocalDate();
+      const openTasks = tasks.filter(t => t.status !== 'completed');
+      const dueToday = openTasks.filter(t => t.dueDate === today);
+      const overdue = openTasks.filter(t => t.dueDate && t.dueDate < today);
+      const changes = tasks.filter(t => t.status === 'changes_required');
+      const completed = tasks.filter(t => t.status === 'completed');
+      const shootsToday = shoots.filter(sh => {
+        const raw = sh.dateTime || sh.date || '';
+        if (!raw) return false;
+        const dt = new Date(raw);
+        return !Number.isNaN(dt.getTime()) && getDashboardLocalDate(dt) === today;
+      });
+
+      const values = {
+        dashActiveTasks: openTasks.length,
+        dashDueToday: dueToday.length,
+        dashOverdue: overdue.length,
+        dashChanges: changes.length,
+        dashCompleted: completed.length,
+        dashShootsToday: shootsToday.length
+      };
+      Object.entries(values).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+      });
+
+      const dateLabel = document.getElementById('dashboardDateLabel');
+      if (dateLabel) dateLabel.textContent = new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+      const events = [];
+      tasks.forEach(t => {
+        if (!t.dueDate || t.status === 'completed') return;
+        events.push({
+          sortDate: new Date(t.dueDate + 'T12:00:00').getTime(),
+          type: 'Task deadline',
+          title: t.title || 'Untitled task',
+          detail: (t.assignedTo || 'Unassigned') + ' · ' + String(t.status || 'pending').replace(/_/g, ' '),
+          tone: t.dueDate < today ? 'text-rose-300' : (t.dueDate === today ? 'text-amber-300' : 'text-orange-300'),
+          dateLabel: new Date(t.dueDate + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+        });
+      });
+      shoots.forEach(sh => {
+        const rawDate = sh.dateTime || sh.date || '';
+        if (!rawDate) return;
+        const dt = new Date(rawDate);
+        if (Number.isNaN(dt.getTime())) return;
+        events.push({
+          sortDate: dt.getTime(),
+          type: 'Shoot',
+          title: sh.topic || sh.title || 'Scheduled shoot',
+          detail: (sh.presenter || 'Presenter TBD') + ' · ' + (sh.location || 'Location TBD'),
+          tone: 'text-sky-300',
+          dateLabel: dt.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        });
+      });
+      events.sort((a, b) => a.sortDate - b.sortDate);
+      const todayStart = new Date(today + 'T00:00:00').getTime();
+      const upcoming = events.filter(e => e.sortDate >= todayStart).slice(0, 5);
+      const list = document.getElementById('dashboardUpcomingList');
+      if (!list) return;
+      list.innerHTML = upcoming.length ? upcoming.map(e =>
+        '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-lg border border-[#1f293d] bg-[#111827] px-3 py-2.5">' +
+          '<div class="min-w-0"><div class="text-[10px] uppercase tracking-wide ' + e.tone + '">' + escapeHtml(e.type) + '</div>' +
+          '<div class="text-xs font-bold text-slate-100 break-words mt-0.5">' + escapeHtml(e.title) + '</div>' +
+          '<div class="text-[11px] text-slate-400 mt-0.5">' + escapeHtml(e.detail) + '</div></div>' +
+          '<div class="text-[11px] font-semibold text-slate-300 sm:text-right shrink-0">' + escapeHtml(e.dateLabel) + '</div>' +
+        '</div>'
+      ).join('') : '<div class="text-xs text-slate-500 py-3 text-center">No upcoming task deadlines or shoots. You are all caught up.</div>';
+    }
+
     function renderAll() {
       renderTasks();
       renderShoots();
       renderTools();
       renderNotifications();
       updateCounts();
+      renderDashboard();
     }
 
     // --- CAROUSEL ---
