@@ -333,7 +333,7 @@
             <select id="taskAssignerInput" required class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
               <option value="Vanita (Script Writer)">Vanita (Script Writer)</option>
               <option value="Shweta (Script Writer)">Shweta (Script Writer)</option>
-              <option value="Pavan (Lead / Editor)">Pavan (Lead / Editor)</option>
+              <option value="Pavan (Video Editor)">Pavan (Video Editor)</option>
               <option value="Vijay (Video Editor)">Vijay (Video Editor)</option>
               <option value="Tushar (Video Editor)">Tushar (Video Editor)</option>
               <option value="Mirtunjay (Video Editor)">Mirtunjay (Video Editor)</option>
@@ -532,6 +532,10 @@
       { id: 'Manoj', name: 'Manoj', role: 'Graphic Designer', color: 'purple', icon: 'ph-paint-brush' },
       { id: 'Ashish', name: 'Ashish', role: 'Graphic Designer', color: 'indigo', icon: 'ph-paint-brush' }
     ];
+
+    function formatTeamMemberRole(name) {
+      return String(name || '').split('Pavan (Lead / Editor)').join('Pavan (Video Editor)');
+    }
 
     // High Reliability Multi-Device Cloud Sync Node
     const CLOUD_API = "https://digital-team-sync.max791687.workers.dev/workspace";
@@ -1011,7 +1015,7 @@ function clearTeamPin() {
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-slate-500 flex items-center gap-1"><i class="ph-bold ph-paper-plane-tilt"></i> Assigned By:</span>
-                  <span class="font-semibold text-amber-400">${t.assignedBy || 'Vanita (Script Writer)'}</span>
+                  <span class="font-semibold text-amber-400">${formatTeamMemberRole(t.assignedBy || 'Vanita (Script Writer)')}</span>
                 </div>
               </div>
 
