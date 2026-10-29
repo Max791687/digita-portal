@@ -196,9 +196,15 @@
       <div class="mt-4 rounded-xl border border-rose-500/25 bg-[#0c1220]/80 p-3 sm:p-4">
         <div class="flex items-center justify-between gap-2 mb-3">
           <h3 class="text-sm font-bold text-rose-300 flex items-center gap-2"><i class="ph-bold ph-chat-centered-text"></i> Revision Inbox — who requested what</h3>
-          <span id="dashboardRevisionCount" class="text-[10px] text-rose-300">0 pending</span>
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="dashboardRevisionCount" class="text-[10px] text-rose-300">0 pending</span>
+            <button id="dashboardRevisionToggle" type="button" onclick="toggleRevisionInbox()" class="text-[10px] font-bold rounded-lg border border-rose-500/30 px-2.5 py-1.5 text-rose-200 hover:bg-rose-500/10">Collapse ▲</button>
+          </div>
         </div>
-        <div id="dashboardRevisionList" class="space-y-2"><p class="text-xs text-slate-500">No revision requests.</p></div>
+        <div id="dashboardRevisionContent" class="hidden">
+          <div class="mb-2 text-[10px] text-slate-500">Latest requests appear first. Scroll inside this panel to view more; the Dashboard will not keep growing.</div>
+          <div id="dashboardRevisionList" class="space-y-2 max-h-72 overflow-y-auto overscroll-contain pr-1 custom-scrollbar"><p class="text-xs text-slate-500">No revision requests.</p></div>
+        </div>
       </div>
     </section>
     <!-- VIEW 1: TASKS -->
@@ -763,6 +769,14 @@ function clearTeamPin() {
     }
 
     // Dashboard calculations are derived from existing tasks/shoots; no stored data is rewritten.
+    function toggleRevisionInbox() {
+      const content = document.getElementById('dashboardRevisionContent');
+      const button = document.getElementById('dashboardRevisionToggle');
+      if (!content || !button) return;
+      const isCollapsed = content.classList.toggle('hidden');
+      button.textContent = isCollapsed ? 'Show requests ▼' : 'Collapse ▲';
+    }
+
     function renderDashboard() {
       const today = getDashboardLocalDate();
       const openTasks = tasks.filter(t => t.status !== 'completed');
