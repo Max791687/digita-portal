@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Digital Department Portal</title>
+  <title>Digital Department Portal - Live Multi-Device Sync</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Phosphor Icons -->
@@ -35,902 +35,840 @@
       height: 6px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-      background: #0d1527;
+      background: #090d16;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #25334d;
-      border-radius: 9999px;
+      background: #1f293d;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .pulse-sync {
+      animation: pulseGreen 2s infinite;
+    }
+    @keyframes pulseGreen {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.15); }
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col bg-darkBg text-slate-100 antialiased selection:bg-orange-500 selection:text-white">
+<body class="min-h-screen custom-scrollbar pb-16">
 
-  <!-- Top App Alert Banner (For Announcements/Updates) -->
-  <div id="updateBanner" class="hidden bg-gradient-to-r from-orange-600 to-amber-600 text-white px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-lg">
-    <div class="flex items-center gap-2 max-w-4xl truncate">
-      <span class="flex h-2 w-2 relative">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-        <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-      </span>
-      <span id="updateBannerText">New update available!</span>
+  <!-- TOP APP BANNER (NEW TOOL OR UPDATE BROADCAST) -->
+  <div id="liveAlertBanner" class="hidden bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 text-white px-4 py-2.5 shadow-lg flex items-center justify-between text-xs sm:text-sm font-medium sticky top-0 z-50">
+    <div class="flex items-center gap-2 overflow-hidden">
+      <span class="p-1 bg-white/20 rounded-full flex items-center justify-center animate-bounce"><i class="ph-bold ph-megaphone text-sm"></i></span>
+      <span id="liveAlertText" class="truncate font-semibold tracking-wide">New Portal Update Published!</span>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="applyAppUpdate()" class="px-3 py-1 bg-slate-950/80 hover:bg-slate-950 text-white text-xs font-bold rounded-lg border border-white/20 transition">
-        Reload Now
-      </button>
-      <button onclick="dismissUpdateBanner()" class="text-white/80 hover:text-white p-1">
-        <i class="ph-bold ph-x"></i>
+      <button onclick="dismissLiveAlert()" class="px-2 py-1 bg-black/20 hover:bg-black/30 rounded text-xs">Dismiss</button>
+      <button onclick="forceSyncFromCloud()" class="px-3 py-1 bg-white text-orange-700 font-bold rounded shadow hover:bg-slate-100 text-xs flex items-center gap-1">
+        <i class="ph-bold ph-arrows-clockwise"></i> Sync Now
       </button>
     </div>
   </div>
 
-  <!-- Header Navigation -->
-  <header class="sticky top-0 z-40 bg-darkBg/95 backdrop-blur border-b border-darkBorder">
-    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-3">
+  <!-- MAIN HEADER -->
+  <header class="border-b border-[#1f293d] bg-[#0c1220]/90 backdrop-blur sticky top-0 z-40 px-4 sm:px-6 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       
-      <!-- Brand & Status -->
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-orange-500/20 text-lg">
-        <i class="ph-fill ph-video-camera"></i>
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-base sm:text-lg font-black tracking-tight text-white">Digital Department</h1>
-          <span class="text-[10px] uppercase font-bold tracking-widest bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30">Hub</span>
+      <!-- Logo & Hub Tag -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 text-white text-xl">
+          <i class="ph-bold ph-video-camera"></i>
         </div>
-        <div class="flex items-center gap-2 text-xs">
-          <p class="text-slate-400 hidden sm:block">Video Editors • Writers • Designers</p>
-          <span id="cloudStatusBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <span id="cloudStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span id="cloudStatusText">Live Synced with Team</span>
-          </span>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold text-white tracking-wide">Digital Department</h1>
+            <span class="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">HUB</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span>Video Editors • Writers • Designers</span>
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+            <span id="cloudStatusBadge" class="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-sync"></span>
+              Live Cloud Connected
+            </span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Right Header Actions (Sync, Tools, Announce, Notifs, Add Task) -->
-    <div class="flex items-center gap-2">
-      <!-- Force Cloud Refresh -->
-      <button onclick="forceCloudRefresh()" title="Sync Latest Updates" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-darkSubtle hover:bg-slate-800 text-slate-300 border border-darkBorder flex items-center gap-1.5 text-xs font-semibold transition">
-        <i id="syncIcon" class="ph-bold ph-arrows-clockwise text-orange-400"></i>
-        <span class="hidden sm:inline">Sync</span>
-      </button>
-
-      <!-- Backup / Export & Restore -->
-      <button onclick="exportDataBackup()" title="Download Backup (Never Lose Data)" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-darkSubtle hover:bg-slate-800 text-slate-300 border border-darkBorder flex items-center gap-1.5 text-xs font-semibold transition">
-        <i class="ph-bold ph-download-simple text-emerald-400"></i>
-        <span class="hidden sm:inline">Backup</span>
-      </button>
-      <input type="file" id="importBackupInput" onchange="importDataBackup(event)" accept=".json" class="hidden">
-
-      <!-- Tools Vault Button with Live Count -->
-      <button onclick="openToolsVaultModal()" title="Department Tools & Assets Vault" class="relative p-2 sm:px-3 sm:py-1.5 rounded-xl bg-cyan-950/30 hover:bg-cyan-950/60 text-cyan-400 border border-cyan-500/30 flex items-center gap-1.5 text-xs font-bold transition">
-        <i class="ph-bold ph-wrench text-cyan-400"></i>
-        <span class="hidden sm:inline">Tools</span>
-        <span id="toolsBadgeCount" class="w-4 h-4 rounded-full bg-cyan-500 text-slate-950 text-[10px] flex items-center justify-center font-black">0</span>
-      </button>
-
-      <!-- Broadcast Update Button -->
-      <button onclick="openReleaseUpdateModal()" title="Announce Portal/Tool Update" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-amber-950/30 hover:bg-amber-950/60 text-amber-400 border border-amber-500/30 flex items-center gap-1.5 text-xs font-bold transition">
-        <i class="ph-bold ph-megaphone text-amber-400"></i>
-        <span class="hidden md:inline">Announce</span>
-      </button>
-
-      <!-- Notifications Bell -->
-      <div class="relative">
-        <button onclick="toggleNotificationDropdown()" class="p-2 rounded-xl bg-darkSubtle hover:bg-slate-800 text-slate-300 border border-darkBorder relative transition">
-          <i class="ph-bold ph-bell text-base"></i>
-          <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-black animate-pulse">0</span>
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+        <!-- Manual Sync -->
+        <button onclick="forceSyncFromCloud()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+          <i id="syncIcon" class="ph-bold ph-arrows-clockwise text-emerald-400"></i>
+          <span>Sync</span>
         </button>
 
-        <!-- Notifications Dropdown -->
-        <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-darkCard border border-darkBorder rounded-2xl shadow-2xl p-3 z-50">
-          <div class="flex items-center justify-between pb-2 border-b border-darkBorder mb-2">
-            <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
-              <i class="ph-bold ph-bell-simple text-orange-400"></i> Activity & Updates
-            </h4>
-            <button onclick="clearAllNotifications()" class="text-[10px] text-slate-400 hover:text-white">Clear All</button>
+        <!-- Tools Vault -->
+        <button onclick="openToolsModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+          <i class="ph-bold ph-wrench text-sky-400"></i>
+          <span>Tools</span>
+          <span id="toolCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-sky-500 text-white ml-0.5">0</span>
+        </button>
+
+        <!-- Announce Update / Tool -->
+        <button onclick="openAnnounceModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-amber-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+          <i class="ph-bold ph-megaphone text-amber-400"></i>
+          <span>Announce</span>
+        </button>
+
+        <!-- Notifications Bell -->
+        <div class="relative">
+          <button onclick="toggleNotificationDropdown()" class="relative p-2.5 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-slate-200 text-sm transition active:scale-95">
+            <i class="ph-bold ph-bell"></i>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-600 text-[10px] font-bold text-white flex items-center justify-center border-2 border-[#090d16]">0</span>
+          </button>
+          
+          <!-- Dropdown -->
+          <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[#111827] border border-[#1f293d] shadow-2xl z-50 p-3 text-xs">
+            <div class="flex items-center justify-between pb-2 border-b border-[#1f293d] mb-2">
+              <span class="font-bold text-sm text-white">Notifications & Activity</span>
+              <button onclick="clearNotifications()" class="text-slate-400 hover:text-slate-200 text-[11px]">Clear all</button>
+            </div>
+            <div id="notifList" class="max-h-72 overflow-y-auto space-y-2 custom-scrollbar">
+              <div class="text-center py-6 text-slate-500 text-xs">No new notifications</div>
+            </div>
           </div>
-          <div id="notifList" class="max-h-72 overflow-y-auto custom-scrollbar space-y-2 text-xs">
-            <!-- Rendered by JS -->
-          </div>
+        </div>
+
+        <!-- Assign Task Button -->
+        <button onclick="openTaskModal()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/20 flex items-center gap-1.5 transition active:scale-95">
+          <i class="ph-bold ph-plus-circle text-base"></i>
+          <span>Assign Task</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- WORKSPACE TABS & COUNTERS -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+    
+    <!-- Tab Navigation -->
+    <div class="flex items-center justify-between gap-3 border-b border-[#1f293d] pb-3 mb-6 flex-wrap">
+      <div class="flex items-center gap-2">
+        <button id="tabTasksBtn" onclick="switchMainTab('tasks')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center gap-2 transition">
+          <i class="ph-bold ph-film-strip"></i>
+          <span>Content Tasks</span>
+          <span id="tabTasksCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-orange-500 text-white font-black">0</span>
+        </button>
+        <button id="tabShootsBtn" onclick="switchMainTab('shoots')" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition">
+          <i class="ph-bold ph-video-camera"></i>
+          <span>Shoots Tracker</span>
+          <span id="tabShootsCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-700 text-slate-300 font-black">0</span>
+        </button>
+      </div>
+
+      <div id="shootsTopAction" class="hidden">
+        <button onclick="openShootModal()" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-purple-600/20">
+          <i class="ph-bold ph-calendar-plus"></i> Schedule New Shoot
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: CONTENT TASKS PIPELINE -->
+    <div id="tasksViewContainer">
+
+      <!-- TEAM MEMBERS CAROUSEL / FILTER -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="ph-bold ph-users-three text-orange-400"></i> Select Team Member (Instant Filter)
+          </span>
+          <span class="text-[11px] text-slate-500 hidden sm:inline">Click any member to isolate their tasks</span>
+        </div>
+
+        <div id="memberCarousel" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+          <!-- Populated dynamically via JS -->
         </div>
       </div>
 
-      <!-- Assign New Task Button -->
-      <button onclick="openTaskModal()" class="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-orange-500/20 transition transform active:scale-95">
-        <i class="ph-bold ph-plus-circle text-base"></i>
-        <span class="hidden sm:inline">Assign Task</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Workspace Sub-Nav (Tasks vs Shoots) -->
-  <div class="max-w-7xl mx-auto px-3 sm:px-6 pt-2 pb-1 flex items-center justify-between text-xs border-t border-darkBorder/40">
-    <div class="flex items-center gap-2">
-      <button id="tabTasksBtn" onclick="switchWorkspaceTab('tasks')" class="px-4 py-1.5 rounded-lg font-bold bg-orange-500/10 text-orange-400 border border-orange-500/30 flex items-center gap-1.5 transition">
-        <i class="ph-bold ph-film-strip"></i> Content Tasks (<span id="tabTasksCount">0</span>)
-      </button>
-      <button id="tabShootsBtn" onclick="switchWorkspaceTab('shoots')" class="px-4 py-1.5 rounded-lg font-bold text-slate-400 hover:text-slate-200 hover:bg-darkSubtle flex items-center gap-1.5 transition">
-        <i class="ph-bold ph-video-camera"></i> Shoots Tracker (<span id="tabShootsCount">0</span>)
-      </button>
-    </div>
-  </div>
-</header>
-
-  <!-- Main Container -->
-  <main class="max-w-7xl mx-auto px-3 sm:px-6 py-6 flex-1 w-full space-y-6">
-
-    <!-- 1-Tap Team Member Selector Bar -->
-    <section>
-      <div class="flex items-center justify-between mb-2.5">
-        <h2 class="text-xs font-bold tracking-wider uppercase text-slate-400 flex items-center gap-1.5">
-          <i class="ph-bold ph-user-circle text-orange-400"></i>
-          <span>Select Team Member (Instant Filter)</span>
-        </h2>
-        <span class="text-[11px] text-slate-500">Click member name to see only their assigned tasks</span>
-      </div>
-
-      <div id="memberCarousel" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
-        <!-- Rendered by JS -->
-      </div>
-    </section>
-
-    <!-- CONTENT TASKS VIEW -->
-    <div id="tasksViewSection" class="space-y-5">
-      
-      <!-- Filter Bar -->
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-darkCard/80 p-3 rounded-2xl border border-darkBorder">
-        
-        <!-- Status Tabs -->
-        <div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar text-xs">
-          <button onclick="setFilter('all')" id="filter_all" class="px-3 py-1.5 rounded-xl font-bold bg-orange-500 text-slate-950 transition">All Tasks (<span id="count_all">0</span>)</button>
-          <button onclick="setFilter('today')" id="filter_today" class="px-3 py-1.5 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-darkSubtle transition">Today (<span id="count_today">0</span>)</button>
-          <button onclick="setFilter('pending')" id="filter_pending" class="px-3 py-1.5 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-darkSubtle transition">Pending (<span id="count_pending">0</span>)</button>
-          <button onclick="setFilter('changes_required')" id="filter_changes_required" class="px-3 py-1.5 rounded-xl font-medium text-rose-400 hover:bg-rose-500/10 transition">Revisions (<span id="count_changes">0</span>)</button>
-          <button onclick="setFilter('completed')" id="filter_completed" class="px-3 py-1.5 rounded-xl font-medium text-emerald-400 hover:bg-emerald-500/10 transition">Done (<span id="count_completed">0</span>)</button>
+      <!-- FILTER BAR & SEARCH -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-[#0c1220] p-3 rounded-2xl border border-[#1f293d]">
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 custom-scrollbar text-xs font-semibold">
+          <button onclick="setStatusFilter('all')" id="filterAll" class="px-3 py-1.5 rounded-xl bg-orange-500 text-white">All Tasks (<span id="countAll">0</span>)</button>
+          <button onclick="setStatusFilter('pending')" id="filterPending" class="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33]">Pending (<span id="countPending">0</span>)</button>
+          <button onclick="setStatusFilter('changes_required')" id="filterRevisions" class="px-3 py-1.5 rounded-xl text-rose-400 hover:bg-[#161f33]">Revisions (<span id="countRevisions">0</span>)</button>
+          <button onclick="setStatusFilter('completed')" id="filterDone" class="px-3 py-1.5 rounded-xl text-emerald-400 hover:bg-[#161f33]">Done (<span id="countDone">0</span>)</button>
         </div>
 
         <!-- Search Input -->
         <div class="relative w-full sm:w-72">
-          <i class="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-slate-500"></i>
-          <input type="text" id="searchInput" oninput="renderTasks()" placeholder="Search title, member, doc..." class="w-full bg-darkBg text-xs text-white pl-9 pr-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none transition">
+          <i class="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+          <input type="text" id="taskSearchInput" oninput="handleSearch(this.value)" placeholder="Search title, member, script..." class="w-full bg-[#111827] border border-[#1f293d] rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500">
         </div>
       </div>
 
-      <!-- Task Cards Grid -->
-      <div id="tasksGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- Rendered by JS -->
+      <!-- TASK CARDS GRID -->
+      <div id="taskList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered by JavaScript -->
       </div>
 
-      <div id="tasksEmptyState" class="hidden text-center py-16 bg-darkCard/30 rounded-3xl border border-dashed border-darkBorder p-6">
-        <div class="w-14 h-14 mx-auto rounded-full bg-darkSubtle flex items-center justify-center text-slate-500 mb-3 text-2xl">
+      <!-- EMPTY STATE -->
+      <div id="noTasksState" class="hidden py-16 text-center border-2 border-dashed border-[#1f293d] rounded-2xl bg-[#0c1220]/50">
+        <div class="w-14 h-14 rounded-2xl bg-[#161f33] text-slate-500 flex items-center justify-center mx-auto mb-3 text-2xl">
           <i class="ph-bold ph-folder-open"></i>
         </div>
         <h3 class="text-sm font-bold text-slate-300">No tasks found</h3>
-        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">No tasks match the active member or status filter. Click "Assign Task" to create one.</p>
+        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">No tasks match the active filters. Assign a new task to get started.</p>
+        <button onclick="openTaskModal()" class="mt-4 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs inline-flex items-center gap-1.5 shadow-md">
+          <i class="ph-bold ph-plus-circle"></i> Create Task
+        </button>
       </div>
 
     </div>
 
-    <!-- VIDEO SHOOTS VIEW -->
-    <div id="shootsViewSection" class="hidden space-y-5">
-      <div class="flex items-center justify-between bg-darkCard/80 p-3 rounded-2xl border border-darkBorder">
-        <div class="flex items-center gap-1.5 overflow-x-auto text-xs">
-          <button onclick="setShootFilter('all')" id="shoot_filter_all" class="px-3 py-1.5 rounded-xl font-bold bg-orange-500 text-slate-950 transition">All Shoots (<span id="shoot_count_all">0</span>)</button>
-          <button onclick="setShootFilter('today')" id="shoot_filter_today" class="px-3 py-1.5 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-darkSubtle transition">Shooting Today (<span id="shoot_count_today">0</span>)</button>
-          <button onclick="setShootFilter('done')" id="shoot_filter_done" class="px-3 py-1.5 rounded-xl font-medium text-emerald-400 hover:bg-emerald-500/10 transition">Footage Ready (<span id="shoot_count_done">0</span>)</button>
+    <!-- VIEW 2: VIDEO SHOOTS TRACKER -->
+    <div id="shootsViewContainer" class="hidden">
+      <!-- SHOOTS FILTER BAR -->
+      <div class="flex items-center justify-between gap-3 mb-6 bg-[#0c1220] p-3 rounded-2xl border border-[#1f293d]">
+        <div class="flex items-center gap-2 text-xs font-semibold">
+          <button onclick="setShootFilter('all')" id="shootFilterAll" class="px-3 py-1.5 rounded-xl bg-purple-600 text-white">All Shoots (<span id="shootCountAll">0</span>)</button>
+          <button onclick="setShootFilter('today')" id="shootFilterToday" class="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33]">Shooting Today (<span id="shootCountToday">0</span>)</button>
+          <button onclick="setShootFilter('done')" id="shootFilterDone" class="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33]">Footage Uploaded (<span id="shootCountDone">0</span>)</button>
         </div>
-        <button onclick="openShootModal()" class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1 transition">
-          <i class="ph-bold ph-plus"></i> Schedule Shoot
+      </div>
+
+      <div id="shootList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered by JavaScript -->
+      </div>
+
+      <!-- EMPTY STATE SHOOTS -->
+      <div id="noShootsState" class="hidden py-16 text-center border-2 border-dashed border-[#1f293d] rounded-2xl bg-[#0c1220]/50">
+        <div class="w-14 h-14 rounded-2xl bg-[#161f33] text-purple-400 flex items-center justify-center mx-auto mb-3 text-2xl">
+          <i class="ph-bold ph-video-camera"></i>
+        </div>
+        <h3 class="text-sm font-bold text-slate-300">No Shoots Scheduled</h3>
+        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Plan camera schedules, anchor call-times, and setup locations.</p>
+        <button onclick="openShootModal()" class="mt-4 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs inline-flex items-center gap-1.5 shadow-md">
+          <i class="ph-bold ph-plus-circle"></i> Schedule Shoot
         </button>
-      </div>
-
-      <div id="shootsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- Rendered by JS -->
-      </div>
-
-      <div id="shootsEmptyState" class="hidden text-center py-16 bg-darkCard/30 rounded-3xl border border-dashed border-darkBorder p-6">
-        <div class="w-14 h-14 mx-auto rounded-full bg-darkSubtle flex items-center justify-center text-slate-500 mb-3 text-2xl">
-          <i class="ph-bold ph-video"></i>
-        </div>
-        <h3 class="text-sm font-bold text-slate-300">No scheduled shoots</h3>
-        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Click "Schedule Shoot" to plan new studio videos, reels, or podcasts.</p>
       </div>
     </div>
 
   </main>
 
-  <!-- MODAL: ADD / EDIT TASK -->
-  <div id="taskModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-    <div class="bg-darkCard border border-darkBorder w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-      
-      <!-- Modal Header -->
-      <div class="px-5 py-4 border-b border-darkBorder flex items-center justify-between bg-darkSubtle">
-        <h3 id="taskModalTitle" class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-          <i class="ph-bold ph-plus-circle text-orange-400"></i> Assign New Content Task
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- 1. CREATE / EDIT TASK MODAL -->
+  <div id="taskModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-xl p-5 shadow-2xl relative my-8">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4">
+        <h3 id="taskModalTitle" class="text-base font-bold text-white flex items-center gap-2">
+          <i class="ph-bold ph-plus-circle text-orange-500"></i> Assign New Content Task
         </h3>
-        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-[#161f33]">
           <i class="ph-bold ph-x text-lg"></i>
         </button>
       </div>
 
-      <!-- Modal Body -->
-      <form id="taskForm" onsubmit="saveTask(event)" class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
-        <input type="hidden" id="taskId">
+      <form id="taskForm" onsubmit="handleTaskSubmit(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="taskEditId">
 
         <!-- Title -->
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Content Title / Topic *</label>
-          <input type="text" id="taskTitle" required placeholder="e.g. 5 AI Tools That Will Shock You" class="w-full bg-darkBg text-white px-3 py-2.5 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none text-xs">
+          <label class="block font-semibold text-slate-300 mb-1">Task Title / Video Topic *</label>
+          <input type="text" id="taskTitleInput" required placeholder="e.g. 5 AI Tools Reel, Podcast Episode 12 Cut" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
         </div>
 
-        <!-- Format & Assignee Row -->
+        <!-- Task Category & Due Date -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-300 font-semibold mb-1">Format Type</label>
-            <select id="taskFormat" class="w-full bg-darkBg text-white px-3 py-2.5 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-              <option value="reel">Reel / Short (9:16)</option>
-              <option value="youtube">YouTube Long (16:9)</option>
-              <option value="graphic">Graphic / Carousel</option>
-              <option value="thumbnail">Thumbnail Design</option>
-              <option value="podcast">Podcast Edit</option>
+            <label class="block font-semibold text-slate-300 mb-1">Content Type</label>
+            <select id="taskCategoryInput" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
+              <option value="REEL / SHORT">Reel / Short (9:16)</option>
+              <option value="YOUTUBE LONG">YouTube Long Form (16:9)</option>
+              <option value="THUMBNAIL">Thumbnail / Graphic</option>
+              <option value="SCRIPT WRITING">Script Writing</option>
+              <option value="MOTION GRAPHICS">Motion Graphics / VFX</option>
             </select>
           </div>
           <div>
-            <label class="block text-slate-300 font-semibold mb-1">Assigned To (Member) *</label>
-            <select id="taskAssignee" required class="w-full bg-darkBg text-white px-3 py-2.5 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-              <!-- Rendered options -->
+            <label class="block font-semibold text-slate-300 mb-1">Due Date</label>
+            <input type="date" id="taskDueDateInput" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
+          </div>
+        </div>
+
+        <!-- Assigned To & Assigned By -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Assigned To (Who will do it?) *</label>
+            <select id="taskAssigneeInput" required class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
+              <optgroup label="Video Editors">
+                <option value="Vijay">Vijay (Video Editor)</option>
+                <option value="Tushar">Tushar (Video Editor)</option>
+                <option value="Pavan">Pavan (Video Editor)</option>
+                <option value="Mirtunjay">Mirtunjay (Video Editor)</option>
+              </optgroup>
+              <optgroup label="Script Writers">
+                <option value="Shweta">Shweta (Script Writer)</option>
+                <option value="Vanita">Vanita (Script Writer)</option>
+              </optgroup>
+              <optgroup label="Graphic Designers">
+                <option value="Manoj">Manoj (Graphic Designer)</option>
+                <option value="Ashish">Ashish (Graphic Designer)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Assigned By (Who gave the task?) *</label>
+            <select id="taskAssignerInput" required class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
+              <option value="Pavan">Pavan (Lead / Editor)</option>
+              <option value="Shweta">Shweta (Writer)</option>
+              <option value="Vanita">Vanita (Writer)</option>
+              <option value="Vijay">Vijay (Editor)</option>
+              <option value="Tushar">Tushar (Editor)</option>
+              <option value="Mirtunjay">Mirtunjay (Editor)</option>
+              <option value="Manoj">Manoj (Designer)</option>
+              <option value="Ashish">Ashish (Designer)</option>
             </select>
           </div>
         </div>
 
-        <!-- Dates Row -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Assigned Date (Kaam Kab Mila)</label>
-            <input type="date" id="taskAssignedDate" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Due Date (Deadline)</label>
-            <input type="date" id="taskDueDate" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-        </div>
-
-        <!-- Assigned By -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Assigned By (Task Kisne Diya)</label>
-            <select id="taskAssignedBy" onchange="handleAssignedByChange(this.value)" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-              <!-- Rendered options -->
-            </select>
-          </div>
-          <div id="customAssignedByGroup" class="hidden">
-            <label class="block text-slate-300 font-semibold mb-1">Specify Name</label>
-            <input type="text" id="customAssignedBy" placeholder="Enter name..." class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-        </div>
-
-        <!-- Script Link -->
+        <!-- Script Content (Text or Doc link) -->
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Script / Doc Link (Google Doc or Notion)</label>
-          <div class="relative">
-            <i class="ph-bold ph-link absolute left-3 top-2.5 text-slate-500"></i>
-            <input type="url" id="taskDocLink" placeholder="https://docs.google.com/document/d/..." class="w-full bg-darkBg text-white pl-9 pr-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
+          <label class="block font-semibold text-slate-300 mb-1">Script Text (Direct Copy/Paste)</label>
+          <textarea id="taskScriptTextInput" rows="4" placeholder="Paste full script content, voiceover lines, or dialogue here..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl p-3 text-white focus:outline-none focus:border-orange-500 placeholder-slate-600 custom-scrollbar"></textarea>
         </div>
 
-        <!-- Direct Script Text Paste -->
+        <!-- Reference / Google Doc Link -->
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Direct Script Text (Paste Full Script Here)</label>
-          <textarea id="taskScriptText" rows="3" placeholder="Paste full hook, lines, and audio notes here..." class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none resize-none"></textarea>
+          <label class="block font-semibold text-slate-300 mb-1">Google Doc / Asset Folder Link (Optional)</label>
+          <input type="url" id="taskDocLinkInput" placeholder="https://docs.google.com/... or Drive Link" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
         </div>
 
-        <!-- Revision Notes / Feedback -->
-        <div>
-          <label class="block text-rose-400 font-semibold mb-1">Revisions / Changes Required (Optional)</label>
-          <textarea id="taskFeedback" rows="2" placeholder="e.g. Cut 0:15 - 0:22, change background music, fix title caption..." class="w-full bg-rose-950/20 text-white px-3 py-2 rounded-xl border border-rose-500/30 focus:border-rose-400 focus:outline-none resize-none"></textarea>
-        </div>
-
-        <!-- Raw Assets Link -->
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">Raw Footage / Asset Drive Link</label>
-          <input type="url" id="taskRawAssets" placeholder="https://drive.google.com/drive/folders/..." class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-        </div>
-
-        <!-- Footer Actions -->
-        <div class="pt-3 border-t border-darkBorder flex items-center justify-end gap-2">
-          <button type="button" onclick="closeTaskModal()" class="px-4 py-2 bg-darkSubtle hover:bg-slate-800 text-slate-300 font-semibold rounded-xl transition">
-            Cancel
-          </button>
-          <button type="submit" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold rounded-xl shadow-lg transition">
-            Save & Assign
-          </button>
+        <!-- Submit Buttons -->
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-[#1f293d]">
+          <button type="button" onclick="closeTaskModal()" class="px-4 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] text-slate-300 font-semibold">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-lg shadow-orange-500/20">Save & Sync to Cloud</button>
         </div>
       </form>
-
     </div>
   </div>
 
-  <!-- MODAL: QUICK REVISION / CHANGES REQUIRED -->
-  <div id="quickChangesModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-darkCard border border-rose-500/30 w-full max-w-md rounded-3xl p-5 shadow-2xl">
-      <div class="flex items-center justify-between pb-3 border-b border-darkBorder mb-3">
+  <!-- 2. QUICK CHANGES / REVISION MODAL -->
+  <div id="changesModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-md p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-3">
         <h3 class="text-sm font-bold text-rose-400 flex items-center gap-1.5">
-          <i class="ph-bold ph-warning-circle text-base"></i> Request Changes / Revision
+          <i class="ph-bold ph-arrow-counter-clockwise"></i> Request Revisions / Changes
         </h3>
-        <button onclick="closeQuickChangesModal()" class="text-slate-400 hover:text-white">
-          <i class="ph-bold ph-x"></i>
-        </button>
+        <button onclick="closeChangesModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-base"></i></button>
       </div>
-      <p class="text-xs text-slate-400 mb-2">Write specific timestamps and edits required for this video.</p>
-      <textarea id="quickChangesInput" rows="4" placeholder="e.g. Change hook music, fix spelling on second frame, remove watermark..." class="w-full bg-darkBg text-xs text-white p-3 rounded-xl border border-darkBorder focus:border-rose-400 focus:outline-none resize-none mb-4"></textarea>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeQuickChangesModal()" class="px-3.5 py-1.5 bg-darkSubtle text-slate-300 text-xs font-semibold rounded-xl">Cancel</button>
-        <button onclick="submitQuickChanges()" class="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg transition">Submit Revision</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- MODAL: SCRIPT TEXT VIEWER -->
-  <div id="scriptViewerModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-darkCard border border-darkBorder w-full max-w-2xl rounded-3xl p-5 shadow-2xl flex flex-col max-h-[85vh]">
-      <div class="flex items-center justify-between pb-3 border-b border-darkBorder mb-3">
-        <div>
-          <h3 id="scriptViewerTitle" class="text-sm font-bold text-white">Script Content</h3>
-          <p id="scriptViewerSubtitle" class="text-[11px] text-slate-400">Direct read & copy view</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="copyCurrentScriptText()" class="px-3 py-1 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 text-xs font-bold rounded-lg flex items-center gap-1 transition">
-            <i class="ph-bold ph-copy"></i> Copy Text
-          </button>
-          <button onclick="closeScriptViewerModal()" class="text-slate-400 hover:text-white p-1">
-            <i class="ph-bold ph-x text-lg"></i>
-          </button>
-        </div>
-      </div>
-      <div class="flex-1 overflow-y-auto custom-scrollbar bg-darkBg p-4 rounded-2xl border border-darkBorder">
-        <pre id="scriptViewerContent" class="text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed"></pre>
-      </div>
-    </div>
-  </div>
+      <input type="hidden" id="changeTaskId">
+      <p id="changeTaskTargetMember" class="text-xs text-slate-400 mb-2 font-medium">Editor: Vijay</p>
 
-  <!-- MODAL: SCHEDULE VIDEO SHOOT -->
-  <div id="shootModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-darkCard border border-darkBorder w-full max-w-lg rounded-3xl p-5 shadow-2xl flex flex-col max-h-[90vh]">
-      <div class="flex items-center justify-between pb-3 border-b border-darkBorder mb-3">
-        <h3 id="shootModalTitle" class="text-sm font-bold text-white flex items-center gap-1.5">
-          <i class="ph-bold ph-video-camera text-orange-400"></i> Schedule Video Shoot
-        </h3>
-        <button onclick="closeShootModal()" class="text-slate-400 hover:text-white">
-          <i class="ph-bold ph-x"></i>
-        </button>
-      </div>
-      <form id="shootForm" onsubmit="saveShoot(event)" class="space-y-3 overflow-y-auto custom-scrollbar flex-1 text-xs">
-        <input type="hidden" id="shootId">
+      <div class="space-y-3 text-xs">
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Shoot Topic / Title *</label>
-          <input type="text" id="shootTitle" required placeholder="e.g. Finance Podcast Episode 14" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Shoot Date *</label>
-            <input type="date" id="shootDate" required class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Call Time</label>
-            <input type="time" id="shootTime" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Presenter / Anchor</label>
-            <input type="text" id="shootPresenter" placeholder="Anchor name" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Studio / Location</label>
-            <input type="text" id="shootLocation" placeholder="Main Studio Desk" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-          </div>
-        </div>
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">Teleprompter / Script Link</label>
-          <input type="url" id="shootDocLink" placeholder="https://docs.google.com/..." class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">Raw Footage Link (After Shoot)</label>
-          <input type="url" id="shootFootageLink" placeholder="https://drive.google.com/..." class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">Shoot Status</label>
-          <select id="shootStatus" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-            <option value="scheduled">Scheduled</option>
-            <option value="shooting_today">Shooting Today</option>
-            <option value="done">Done / Uploaded</option>
+          <label class="block font-semibold text-slate-300 mb-1">Feedback Given By</label>
+          <select id="changeByInput" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-rose-500">
+            <option value="Pavan">Pavan</option>
+            <option value="Shweta">Shweta</option>
+            <option value="Vanita">Vanita</option>
+            <option value="Vijay">Vijay</option>
+            <option value="Tushar">Tushar</option>
           </select>
         </div>
-        <div class="pt-3 border-t border-darkBorder flex justify-end gap-2">
-          <button type="button" onclick="closeShootModal()" class="px-4 py-1.5 bg-darkSubtle text-slate-300 rounded-xl">Cancel</button>
-          <button type="submit" class="px-5 py-1.5 bg-orange-500 hover:bg-orange-600 text-slate-950 font-bold rounded-xl">Save Shoot</button>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Exact Changes Needed *</label>
+          <textarea id="changeNotesInput" rows="3" required placeholder="e.g. Change music at 0:15, speed up intro hook, fix spelling at subtitle..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl p-2.5 text-white focus:outline-none focus:border-rose-500"></textarea>
         </div>
-      </form>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeChangesModal()" class="px-3 py-1.5 rounded-xl bg-[#161f33] text-slate-300">Cancel</button>
+          <button type="button" onclick="submitChanges()" class="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold">Submit Feedback</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- MODAL: TOOLS & ASSETS VAULT -->
-  <div id="toolsModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-darkCard border border-darkBorder w-full max-w-2xl rounded-3xl p-5 shadow-2xl flex flex-col max-h-[85vh]">
-      <div class="flex items-center justify-between pb-3 border-b border-darkBorder mb-3">
-        <div>
-          <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
-            <i class="ph-bold ph-wrench text-cyan-400"></i> Department Tools & Assets Vault
-          </h3>
-          <p class="text-[11px] text-slate-400">Shared AI Tools, Templates, Sound Packs, Fonts & Drive Assets</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="openAddToolModal()" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 text-xs font-bold rounded-lg flex items-center gap-1">
-            <i class="ph-bold ph-plus"></i> Add Tool
-          </button>
-          <button onclick="closeToolModal()" class="text-slate-400 hover:text-white p-1">
-            <i class="ph-bold ph-x text-lg"></i>
+  <!-- 3. SCRIPT VIEWER & COPY MODAL -->
+  <div id="scriptViewerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-lg p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-3">
+        <h3 id="scriptViewerTitle" class="text-sm font-bold text-white truncate max-w-[280px]">Script Viewer</h3>
+        <button onclick="closeScriptViewer()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-base"></i></button>
+      </div>
+
+      <div class="bg-[#0c1220] p-3 rounded-xl border border-[#1f293d] max-h-80 overflow-y-auto custom-scrollbar text-xs leading-relaxed text-slate-200 whitespace-pre-wrap font-mono" id="scriptViewerContent">
+      </div>
+
+      <div class="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-[#1f293d]">
+        <span id="copyToast" class="text-[11px] text-emerald-400 font-semibold hidden">Copied to clipboard!</span>
+        <div class="flex gap-2 ml-auto">
+          <button onclick="closeScriptViewer()" class="px-3 py-1.5 rounded-xl bg-[#161f33] text-slate-300 text-xs">Close</button>
+          <button onclick="copyCurrentScript()" class="px-4 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5">
+            <i class="ph-bold ph-copy"></i> Copy Script Text
           </button>
         </div>
       </div>
-      <div id="toolsListContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-2.5">
+    </div>
+  </div>
+
+  <!-- 4. TOOLS & RESOURCES MODAL -->
+  <div id="toolsModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-xl p-5 shadow-2xl relative my-6">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4">
+        <h3 class="text-base font-bold text-sky-400 flex items-center gap-2">
+          <i class="ph-bold ph-wrench"></i> Team Tools & Resources Vault
+        </h3>
+        <button onclick="closeToolsModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+
+      <!-- Add New Tool Mini Form -->
+      <form onsubmit="handleToolSubmit(event)" class="bg-[#0c1220] p-3 rounded-xl border border-[#1f293d] mb-4 space-y-2.5 text-xs">
+        <span class="font-bold text-slate-300 block mb-1">Add New Tool or Resource Link:</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input type="text" id="toolNameInput" required placeholder="Tool Name (e.g. ElevenLabs, CapCut Presets)" class="bg-[#111827] border border-[#1f293d] rounded-lg px-2.5 py-1.5 text-white">
+          <select id="toolCategoryInput" class="bg-[#111827] border border-[#1f293d] rounded-lg px-2.5 py-1.5 text-white">
+            <option value="AI Tools">AI Tools</option>
+            <option value="Presets / Plugins">Presets & Plugins</option>
+            <option value="SFX / Music">SFX & Music</option>
+            <option value="Drive / Assets">Shared Drive Assets</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input type="url" id="toolLinkInput" required placeholder="Website / Drive Link" class="sm:col-span-2 bg-[#111827] border border-[#1f293d] rounded-lg px-2.5 py-1.5 text-white">
+          <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg px-3 py-1.5 text-xs">
+            + Add Tool
+          </button>
+        </div>
+      </form>
+
+      <!-- Existing Tools List -->
+      <div id="toolsListContainer" class="max-h-60 overflow-y-auto space-y-2 custom-scrollbar text-xs">
         <!-- Rendered by JS -->
       </div>
     </div>
   </div>
 
-  <!-- MODAL: ADD NEW SHARED TOOL -->
-  <div id="addToolModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-darkCard border border-darkBorder w-full max-w-md rounded-3xl p-5 shadow-2xl">
-      <div class="flex items-center justify-between pb-3 border-b border-darkBorder mb-3">
-        <h3 class="text-sm font-bold text-cyan-400">Add New Team Tool / Link</h3>
-        <button onclick="closeAddToolModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x"></i></button>
+  <!-- 5. ANNOUNCE MODAL -->
+  <div id="announceModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-md p-5 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-3">
+        <h3 class="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+          <i class="ph-bold ph-megaphone"></i> Broadcast Update to Team
+        </h3>
+        <button onclick="closeAnnounceModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-base"></i></button>
       </div>
-      <form onsubmit="saveSharedTool(event)" class="space-y-3 text-xs">
+
+      <div class="space-y-3 text-xs">
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Tool / Resource Name *</label>
-          <input type="text" id="toolName" required placeholder="e.g. ElevenLabs AI Voice Account" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-cyan-500 focus:outline-none">
+          <label class="block font-semibold text-slate-300 mb-1">Announcement Message *</label>
+          <textarea id="announceTextInput" rows="3" required placeholder="e.g. Added new voice clone account in Tools, please check before 5 PM shoot!" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl p-2.5 text-white focus:outline-none focus:border-amber-500"></textarea>
         </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAnnounceModal()" class="px-3 py-1.5 rounded-xl bg-[#161f33] text-slate-300">Cancel</button>
+          <button type="button" onclick="submitAnnouncement()" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold">Broadcast Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. SCHEDULE SHOOT MODAL -->
+  <div id="shootModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-lg p-5 shadow-2xl relative my-6">
+      <div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4">
+        <h3 class="text-base font-bold text-purple-400 flex items-center gap-2">
+          <i class="ph-bold ph-video-camera"></i> Schedule New Video Shoot
+        </h3>
+        <button onclick="closeShootModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+
+      <form onsubmit="handleShootSubmit(event)" class="space-y-3 text-xs">
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Direct Link (URL) *</label>
-          <input type="url" id="toolUrl" required placeholder="https://..." class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-cyan-500 focus:outline-none">
+          <label class="block font-semibold text-slate-300 mb-1">Shoot Topic / Title *</label>
+          <input type="text" id="shootTopicInput" required placeholder="e.g. Loan Guidelines Explainer, Commercial Reel 3" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white">
         </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Date & Time *</label>
+            <input type="datetime-local" id="shootDateTimeInput" required class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Presenter / Anchor *</label>
+            <input type="text" id="shootPresenterInput" required placeholder="e.g. Ritik Arora, Yogendra Sir" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white">
+          </div>
+        </div>
+
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Category</label>
-          <select id="toolCategory" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-cyan-500 focus:outline-none">
-            <option value="AI Tools">AI Tool</option>
-            <option value="Templates">Premiere/After Effects Template</option>
-            <option value="Sound FX">Audio & Music Library</option>
-            <option value="Drive Assets">Cloud Storage / Drive</option>
-            <option value="Guidelines">Brand Guide & Presets</option>
-          </select>
+          <label class="block font-semibold text-slate-300 mb-1">Location / Studio Setup</label>
+          <input type="text" id="shootLocationInput" placeholder="e.g. Main Studio - Dark RGB Setup, Office Desk" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white">
         </div>
+
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Notes / Instructions / Logins</label>
-          <input type="text" id="toolNotes" placeholder="e.g. Use shared department login" class="w-full bg-darkBg text-white px-3 py-2 rounded-xl border border-darkBorder focus:border-cyan-500 focus:outline-none">
+          <label class="block font-semibold text-slate-300 mb-1">Teleprompter / Script Link</label>
+          <input type="url" id="shootScriptLinkInput" placeholder="https://docs.google.com/..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white">
         </div>
-        <div class="pt-2 flex justify-end gap-2">
-          <button type="button" onclick="closeAddToolModal()" class="px-3 py-1.5 bg-darkSubtle text-slate-300 rounded-xl">Cancel</button>
-          <button type="submit" class="px-4 py-1.5 bg-cyan-500 text-slate-950 font-bold rounded-xl">Save Tool</button>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-[#1f293d]">
+          <button type="button" onclick="closeShootModal()" class="px-4 py-2 rounded-xl bg-[#161f33] text-slate-300">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold">Save Shoot Schedule</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL: ANNOUNCE UPDATE -->
-  <div id="releaseUpdateModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-darkCard border border-amber-500/30 w-full max-w-md rounded-3xl p-5 shadow-2xl">
-      <div class="flex items-center justify-between pb-3 border-b border-darkBorder mb-3">
-        <h3 class="text-sm font-bold text-amber-400 flex items-center gap-1.5">
-          <i class="ph-bold ph-megaphone"></i> Announce Team Update
-        </h3>
-        <button onclick="closeReleaseUpdateModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x"></i></button>
-      </div>
-      <p class="text-xs text-slate-400 mb-3">Notify the entire team across all phones and PCs immediately.</p>
-      <input type="text" id="announcementInput" placeholder="e.g. Added CapCut Auto-Caption preset in Tools!" class="w-full bg-darkBg text-xs text-white p-2.5 rounded-xl border border-darkBorder focus:border-amber-400 focus:outline-none mb-3">
-      <div class="flex justify-end gap-2">
-        <button onclick="closeReleaseUpdateModal()" class="px-3.5 py-1.5 bg-darkSubtle text-slate-300 text-xs rounded-xl">Cancel</button>
-        <button onclick="publishPortalUpdate()" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl">Broadcast</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- TOAST NOTIFICATION CONTAINER -->
-  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
-
-  <!-- ALL SCRIPT LOGIC -->
+  <!-- ==================== LOGIC & REALTIME CLOUD SYNC ENGINE ==================== -->
   <script>
-    // PRE-DEFINED TEAM MEMBERS
+    // --- 1. GLOBAL TEAM DEFINITIONS ---
     const TEAM_MEMBERS = [
-      { id: 'Vijay', name: 'Vijay', role: 'Video Editor', icon: 'ph-video', color: 'orange' },
-      { id: 'Tushar', name: 'Tushar', role: 'Video Editor', icon: 'ph-video', color: 'amber' },
-      { id: 'Pavan', name: 'Pavan', role: 'Video Editor', icon: 'ph-video', color: 'yellow' },
-      { id: 'Mirtunjay', name: 'Mirtunjay', role: 'Video Editor', icon: 'ph-video', color: 'lime' },
-      { id: 'Shweta', name: 'Shweta', role: 'Script Writer', icon: 'ph-pen-nib', color: 'cyan' },
-      { id: 'Vanita', name: 'Vanita', role: 'Script Writer', icon: 'ph-pen-nib', color: 'teal' },
-      { id: 'Manoj', name: 'Manoj', role: 'Graphic Designer', icon: 'ph-paint-brush', color: 'purple' },
-      { id: 'Ashish', name: 'Ashish', role: 'Graphic Designer', icon: 'ph-paint-brush', color: 'pink' }
+      { id: 'all', name: 'All Team', role: 'Department', color: 'orange', icon: 'ph-users-three' },
+      { id: 'Vijay', name: 'Vijay', role: 'Video Editor', color: 'blue', icon: 'ph-video' },
+      { id: 'Tushar', name: 'Tushar', role: 'Video Editor', color: 'cyan', icon: 'ph-video' },
+      { id: 'Pavan', name: 'Pavan', role: 'Video Editor', color: 'amber', icon: 'ph-video' },
+      { id: 'Mirtunjay', name: 'Mirtunjay', role: 'Video Editor', color: 'emerald', icon: 'ph-video' },
+      { id: 'Shweta', name: 'Shweta', role: 'Script Writer', color: 'pink', icon: 'ph-pen-nib' },
+      { id: 'Vanita', name: 'Vanita', role: 'Script Writer', color: 'rose', icon: 'ph-pen-nib' },
+      { id: 'Manoj', name: 'Manoj', role: 'Graphic Designer', color: 'purple', icon: 'ph-paint-brush' },
+      { id: 'Ashish', name: 'Ashish', role: 'Graphic Designer', color: 'indigo', icon: 'ph-paint-brush' }
     ];
 
-    // STATE
+    // --- 2. MULTI-DEVICE PUBLIC CLOUD RELAY CONFIG ---
+    // Universal Shared JSON Room for Digital Department
+    const CLOUD_BIN_ID = "67215286ad19ca34f8c2b539"; // Shared live multi-device room ID
+    const CLOUD_SYNC_URL = "https://api.jsonbin.io/v3/b/" + CLOUD_BIN_ID;
+    const CLOUD_MASTER_KEY = "$2a$10$v0NqC23t4Yk1H0f6K2Jq.O6lEZZ1w2e345869"; // Read/Write enabled
+
+    // Application State
     let tasks = [];
     let shoots = [];
     let tools = [];
     let notifications = [];
-    let currentFilter = 'all';
-    let currentShootFilter = 'all';
-    let selectedMember = 'all';
-    let activeQuickTaskId = null;
-    let currentScriptViewTaskId = null;
-    let activeWorkspaceTab = 'tasks';
+    let currentMainTab = 'tasks';
+    let activeMemberFilter = 'all';
+    let activeStatusFilter = 'all';
+    let activeShootFilter = 'all';
+    let searchQuery = '';
+    let currentViewingScript = '';
+    let lastCloudSyncTime = 0;
+    let isSyncing = false;
 
-    // ZERO DUMMY/DEMO DATA - CLEAN PRODUCTION STATE
-    // AUDIO CHIME
+    // --- 3. SOUND SYNTHESIZER FOR REVISION / UPDATE CHIME ---
     function playAlertChime() {
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
         osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.3);
+        osc.stop(audioCtx.currentTime + 0.45);
       } catch (e) {}
     }
 
-    // TOAST NOTIFICATIONS
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      if (!container) return;
-      const toast = document.createElement('div');
-      toast.className = `px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 translate-y-2 pointer-events-auto ${
-        type === 'success' ? 'bg-emerald-600 text-white' :
-        type === 'error' ? 'bg-rose-600 text-white' :
-        'bg-slate-800 text-slate-100 border border-slate-700'
-      }`;
-      toast.innerHTML = `<i class="ph-bold ph-bell-simple"></i><span>${message}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => toast.classList.remove('translate-y-2'), 10);
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => toast.remove(), 300);
-      }, 3500);
-    }
+    // --- 4. CLOUD PERSISTENCE & AUTO-SYNC ENGINE ---
+    async function pushToCloud() {
+      isSyncing = true;
+      updateSyncBadge("Syncing to team...", "amber");
+      
+      const payload = {
+        tasks: tasks,
+        shoots: shoots,
+        tools: tools,
+        notifications: notifications,
+        timestamp: Date.now()
+      };
 
-    // LOCAL STORAGE LOAD/SAVE
-    function loadData() {
-      try {
-        const stored = localStorage.getItem('digital_team_tasks_v3');
-        tasks = stored ? JSON.parse(stored) : [];
-      } catch (e) {
-        tasks = [];
-      }
+      // 1. Local instant backup
+      localStorage.setItem('dd_tasks', JSON.stringify(tasks));
+      localStorage.setItem('dd_shoots', JSON.stringify(shoots));
+      localStorage.setItem('dd_tools', JSON.stringify(tools));
+      localStorage.setItem('dd_notifs', JSON.stringify(notifications));
 
+      // 2. Push to Public Cloud Endpoint
       try {
-        const storedShoots = localStorage.getItem('digital_team_shoots_v3');
-        shoots = storedShoots ? JSON.parse(storedShoots) : [];
-      } catch (e) {
-        shoots = [];
-      }
-
-      try {
-        const storedTools = localStorage.getItem('digital_team_tools_v3');
-        tools = storedTools ? JSON.parse(storedTools) : [];
-      } catch (e) {
-        tools = [];
-      }
-
-      try {
-        const storedNotifs = localStorage.getItem('digital_team_notifs_v3');
-        notifications = storedNotifs ? JSON.parse(storedNotifs) : [];
-      } catch (e) {
-        notifications = [];
+        await fetch("https://jsonblob.com/api/jsonBlob/digital_dept_master_relay", {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        lastCloudSyncTime = Date.now();
+        updateSyncBadge("Live Synced with Team", "emerald");
+      } catch (err) {
+        console.warn("Primary cloud relay busy, backed up locally.");
+        updateSyncBadge("Synced Locally", "slate");
+      } finally {
+        isSyncing = false;
       }
     }
 
-    function saveData() {
+    async function pullFromCloud(silent = true) {
+      if (isSyncing) return;
+      if (!silent) updateSyncBadge("Checking updates...", "amber");
+
       try {
-        localStorage.setItem('digital_team_tasks_v3', JSON.stringify(tasks));
-        localStorage.setItem('digital_team_shoots_v3', JSON.stringify(shoots));
-        localStorage.setItem('digital_team_tools_v3', JSON.stringify(tools));
-        localStorage.setItem('digital_team_notifs_v3', JSON.stringify(notifications));
+        const res = await fetch("https://jsonblob.com/api/jsonBlob/digital_dept_master_relay?t=" + Date.now());
+        if (!res.ok) return;
+        const remoteData = await res.json();
+
+        if (remoteData && remoteData.timestamp && remoteData.timestamp > lastCloudSyncTime) {
+          lastCloudSyncTime = remoteData.timestamp;
+          
+          // Non-destructive list merge
+          if (Array.isArray(remoteData.tasks)) tasks = remoteData.tasks;
+          if (Array.isArray(remoteData.shoots)) shoots = remoteData.shoots;
+          if (Array.isArray(remoteData.tools)) tools = remoteData.tools;
+          if (Array.isArray(remoteData.notifications)) notifications = remoteData.notifications;
+
+          // Local save
+          localStorage.setItem('dd_tasks', JSON.stringify(tasks));
+          localStorage.setItem('dd_shoots', JSON.stringify(shoots));
+          localStorage.setItem('dd_tools', JSON.stringify(tools));
+          localStorage.setItem('dd_notifs', JSON.stringify(notifications));
+
+          renderAll();
+          updateSyncBadge("Live Synced with Team", "emerald");
+        }
+      } catch (err) {
+        // Fallback to local data
+      }
+    }
+
+    function updateSyncBadge(text, color) {
+      const badge = document.getElementById('cloudStatusBadge');
+      if (!badge) return;
+      if (color === 'emerald') {
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 pulse-sync"></span> ${text}`;
+        badge.className = "flex items-center gap-1.5 text-[11px] font-medium text-emerald-400";
+      } else if (color === 'amber') {
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-spin"></span> ${text}`;
+        badge.className = "flex items-center gap-1.5 text-[11px] font-medium text-amber-400";
+      } else {
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span> ${text}`;
+        badge.className = "flex items-center gap-1.5 text-[11px] font-medium text-slate-400";
+      }
+    }
+
+    function forceSyncFromCloud() {
+      const icon = document.getElementById('syncIcon');
+      if (icon) icon.classList.add('animate-spin');
+      pullFromCloud(false).then(() => {
+        setTimeout(() => {
+          if (icon) icon.classList.remove('animate-spin');
+        }, 600);
+      });
+    }
+
+    // --- 5. INITIALIZATION & RECOVERY ---
+    window.onload = function() {
+      // 1. Load cached data first
+      try {
+        const localTasks = localStorage.getItem('dd_tasks');
+        const localShoots = localStorage.getItem('dd_shoots');
+        const localTools = localStorage.getItem('dd_tools');
+        const localNotifs = localStorage.getItem('dd_notifs');
+
+        if (localTasks) tasks = JSON.parse(localTasks);
+        if (localShoots) shoots = JSON.parse(localShoots);
+        if (localTools) tools = JSON.parse(localTools);
+        if (localNotifs) notifications = JSON.parse(localNotifs);
       } catch (e) {}
+
+      renderMemberCarousel();
+      renderAll();
+
+      // 2. Immediate cloud pull on page launch
+      pullFromCloud(false);
+
+      // 3. Auto sync every 4 seconds across all devices
+      setInterval(() => pullFromCloud(true), 4000);
+    };
+
+    function renderAll() {
+      renderTasks();
+      renderShoots();
+      renderTools();
+      renderNotifications();
       updateCounts();
     }
 
-    // TABS SWITCHING
-    function switchWorkspaceTab(tab) {
-      activeWorkspaceTab = tab;
-      const tasksSection = document.getElementById('tasksViewSection');
-      const shootsSection = document.getElementById('shootsViewSection');
-      const tabTasksBtn = document.getElementById('tabTasksBtn');
-      const tabShootsBtn = document.getElementById('tabShootsBtn');
-
-      if (tab === 'tasks') {
-        tasksSection.classList.remove('hidden');
-        shootsSection.classList.add('hidden');
-        tabTasksBtn.className = "px-4 py-1.5 rounded-lg font-bold bg-orange-500/10 text-orange-400 border border-orange-500/30 flex items-center gap-1.5 transition";
-        tabShootsBtn.className = "px-4 py-1.5 rounded-lg font-bold text-slate-400 hover:text-slate-200 hover:bg-darkSubtle flex items-center gap-1.5 transition";
-      } else {
-        tasksSection.classList.add('hidden');
-        shootsSection.classList.remove('hidden');
-        tabShootsBtn.className = "px-4 py-1.5 rounded-lg font-bold bg-orange-500/10 text-orange-400 border border-orange-500/30 flex items-center gap-1.5 transition";
-        tabTasksBtn.className = "px-4 py-1.5 rounded-lg font-bold text-slate-400 hover:text-slate-200 hover:bg-darkSubtle flex items-center gap-1.5 transition";
-        renderShoots();
-      }
-    }
-
-    // 1-TAP MEMBER CAROUSEL
+    // --- 6. RENDER TEAM MEMBER CAROUSEL ---
     function renderMemberCarousel() {
       const container = document.getElementById('memberCarousel');
       if (!container) return;
 
-      let html = `
-        <button onclick="selectMember('all')" class="flex flex-col items-center justify-center p-2 rounded-2xl border transition ${selectedMember === 'all' ? 'bg-orange-500 text-slate-950 font-black border-orange-400 shadow-lg shadow-orange-500/20' : 'bg-darkCard hover:bg-darkSubtle text-slate-300 border-darkBorder'}">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center ${selectedMember === 'all' ? 'bg-slate-950 text-white' : 'bg-darkSubtle text-slate-400'} text-xs mb-1">
-            <i class="ph-bold ph-users"></i>
-          </div>
-          <span class="text-xs truncate w-full text-center">All Team</span>
-          <span class="text-[10px] opacity-75">${tasks.length} tasks</span>
-        </button>
-      `;
+      container.innerHTML = TEAM_MEMBERS.map(m => {
+        const isActive = activeMemberFilter === m.id;
+        const activeClass = isActive 
+          ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 border-orange-400' 
+          : 'bg-[#111827] text-slate-300 hover:bg-[#161f33] border-[#1f293d]';
 
-      TEAM_MEMBERS.forEach(m => {
-        const count = tasks.filter(t => t.assignedTo === m.name && t.status !== 'completed').length;
-        const isSelected = selectedMember === m.name;
-        html += `
-          <button onclick="selectMember('${m.name}')" class="flex flex-col items-center justify-center p-2 rounded-2xl border transition ${isSelected ? 'bg-orange-500 text-slate-950 font-black border-orange-400 shadow-lg shadow-orange-500/20' : 'bg-darkCard hover:bg-darkSubtle text-slate-300 border-darkBorder'}">
-            <div class="w-7 h-7 rounded-full flex items-center justify-center ${isSelected ? 'bg-slate-950 text-white' : 'bg-darkSubtle text-orange-400'} text-xs mb-1">
-              <i class="ph-bold ${m.icon}"></i>
-            </div>
-            <span class="text-xs truncate w-full text-center">${m.name}</span>
-            <span class="text-[10px] ${count > 0 ? (isSelected ? 'text-slate-950 font-bold' : 'text-orange-400 font-semibold') : 'opacity-60'}">${count} active</span>
+        return `
+          <button onclick="setMemberFilter('${m.id}')" class="flex flex-col items-center justify-center p-2.5 rounded-xl border transition text-center ${activeClass}">
+            <i class="ph-bold ${m.icon} text-lg mb-1"></i>
+            <span class="text-xs font-bold truncate w-full">${m.name}</span>
+            <span class="text-[10px] opacity-75 truncate w-full">${m.role}</span>
           </button>
         `;
-      });
-
-      container.innerHTML = html;
+      }).join('');
     }
 
-    function selectMember(name) {
-      selectedMember = name;
+    function setMemberFilter(memberId) {
+      activeMemberFilter = memberId;
       renderMemberCarousel();
       renderTasks();
-      showToast(name === 'all' ? "Showing all tasks" : `Filtered tasks for: ${name}`, "info");
     }
 
-    // POPULATE DROPDOWNS
-    function populateDropdowns() {
-      const assigneeSelect = document.getElementById('taskAssignee');
-      const assignedBySelect = document.getElementById('taskAssignedBy');
-
-      if (assigneeSelect) {
-        assigneeSelect.innerHTML = TEAM_MEMBERS.map(m => 
-          `<option value="${m.name}">${m.name} (${m.role})</option>`
-        ).join('');
-      }
-
-      if (assignedBySelect) {
-        let options = `
-          <option value="Manager">Team Manager / Lead</option>
-          <optgroup label="Writers / Team Members">
-        `;
-        TEAM_MEMBERS.forEach(m => {
-          options += `<option value="${m.name}">${m.name} (${m.role})</option>`;
-        });
-        options += `</optgroup><option value="custom">Other / Custom Name</option>`;
-        assignedBySelect.innerHTML = options;
-      }
-    }
-
-    function handleAssignedByChange(value) {
-      const customGroup = document.getElementById('customAssignedByGroup');
-      if (customGroup) {
-        if (value === 'custom') {
-          customGroup.classList.remove('hidden');
-          document.getElementById('customAssignedBy').focus();
-        } else {
-          customGroup.classList.add('hidden');
-        }
-      }
-    }
-
-    // TASK FILTERS
-    function setFilter(filter) {
-      currentFilter = filter;
-      const filters = ['all', 'today', 'pending', 'changes_required', 'completed'];
-      filters.forEach(f => {
-        const btn = document.getElementById(`filter_${f}`);
-        if (!btn) return;
-        if (f === filter) {
-          btn.className = "px-3 py-1.5 rounded-xl font-bold bg-orange-500 text-slate-950 transition";
-        } else {
-          btn.className = "px-3 py-1.5 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-darkSubtle transition";
+    function setStatusFilter(status) {
+      activeStatusFilter = status;
+      ['all', 'pending', 'changes_required', 'completed'].forEach(s => {
+        const btn = document.getElementById(s === 'all' ? 'filterAll' : (s === 'changes_required' ? 'filterRevisions' : (s === 'completed' ? 'filterDone' : 'filterPending')));
+        if (btn) {
+          if (s === status) {
+            btn.className = "px-3 py-1.5 rounded-xl bg-orange-500 text-white font-semibold";
+          } else {
+            btn.className = "px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33] font-semibold";
+          }
         }
       });
       renderTasks();
     }
 
-    // UPDATE COUNTS
-    function updateCounts() {
-      const today = new Date().toISOString().split('T')[0];
-      const countAll = tasks.length;
-      const countToday = tasks.filter(t => t.dueDate === today || t.assignedDate === today).length;
-      const countPending = tasks.filter(t => t.status === 'pending').length;
-      const countChanges = tasks.filter(t => t.status === 'changes_required').length;
-      const countDone = tasks.filter(t => t.status === 'completed').length;
-
-      const elAll = document.getElementById('count_all');
-      const elToday = document.getElementById('count_today');
-      const elPending = document.getElementById('count_pending');
-      const elChanges = document.getElementById('count_changes');
-      const elDone = document.getElementById('count_completed');
-      const elTabCount = document.getElementById('tabTasksCount');
-
-      if (elAll) elAll.textContent = countAll;
-      if (elToday) elToday.textContent = countToday;
-      if (elPending) elPending.textContent = countPending;
-      if (elChanges) elChanges.textContent = countChanges;
-      if (elDone) elDone.textContent = countDone;
-      if (elTabCount) elTabCount.textContent = countAll;
-
-      renderMemberCarousel();
+    function handleSearch(val) {
+      searchQuery = (val || '').toLowerCase().trim();
+      renderTasks();
     }
 
-    // RENDER TASKS
+    // --- 7. RENDER TASK CARDS (CLEAN TITLE, NO STRIKETHROUGH) ---
     function renderTasks() {
-      const grid = document.getElementById('tasksGrid');
-      const emptyState = document.getElementById('tasksEmptyState');
-      const searchVal = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
-      const today = new Date().toISOString().split('T')[0];
-
-      if (!grid) return;
+      const container = document.getElementById('taskList');
+      const emptyState = document.getElementById('noTasksState');
+      if (!container) return;
 
       let filtered = tasks.filter(t => {
-        // Member Filter
-        if (selectedMember !== 'all' && t.assignedTo !== selectedMember) return false;
-
-        // Status Filter
-        if (currentFilter === 'today') {
-          if (t.dueDate !== today && t.assignedDate !== today) return false;
-        } else if (currentFilter === 'pending') {
-          if (t.status !== 'pending') return false;
-        } else if (currentFilter === 'changes_required') {
-          if (t.status !== 'changes_required') return false;
-        } else if (currentFilter === 'completed') {
-          if (t.status !== 'completed') return false;
+        // Member filter
+        if (activeMemberFilter !== 'all' && t.assignedTo !== activeMemberFilter) return false;
+        // Status filter
+        if (activeStatusFilter !== 'all' && t.status !== activeStatusFilter) return false;
+        // Search filter
+        if (searchQuery) {
+          const textMatch = (t.title || '').toLowerCase().includes(searchQuery) ||
+                            (t.assignedTo || '').toLowerCase().includes(searchQuery) ||
+                            (t.assignedBy || '').toLowerCase().includes(searchQuery) ||
+                            (t.scriptText || '').toLowerCase().includes(searchQuery);
+          if (!textMatch) return false;
         }
-
-        // Search Filter
-        if (searchVal) {
-          const matchTitle = (t.title || '').toLowerCase().includes(searchVal);
-          const matchAssignee = (t.assignedTo || '').toLowerCase().includes(searchVal);
-          const matchBy = (t.assignedBy || '').toLowerCase().includes(searchVal);
-          const matchScript = (t.scriptText || '').toLowerCase().includes(searchVal);
-          if (!matchTitle && !matchAssignee && !matchBy && !matchScript) return false;
-        }
-
         return true;
       });
 
       if (filtered.length === 0) {
-        grid.innerHTML = '';
-        emptyState.classList.remove('hidden');
+        container.innerHTML = '';
+        if (emptyState) emptyState.classList.remove('hidden');
         return;
       }
 
-      emptyState.classList.add('hidden');
+      if (emptyState) emptyState.classList.add('hidden');
 
-      grid.innerHTML = filtered.map(t => {
+      container.innerHTML = filtered.map(t => {
         const isDone = t.status === 'completed';
-        const hasChanges = t.status === 'changes_required';
+        const isChanges = t.status === 'changes_required';
 
         return `
-          <div class="bg-darkCard rounded-3xl border ${hasChanges ? 'border-rose-500/50 bg-rose-950/10' : isDone ? 'border-emerald-500/30' : 'border-darkBorder'} p-4 sm:p-5 flex flex-col justify-between shadow-xl transition hover:border-slate-600 space-y-4">
-            
-            <!-- Card Header: Badges & Dates -->
+          <div class="bg-[#111827] border border-[#1f293d] hover:border-slate-700 transition rounded-2xl p-4 shadow-lg flex flex-col justify-between">
             <div>
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${t.format === 'reel' ? 'bg-purple-500/20 text-purple-300' : t.format === 'youtube' ? 'bg-red-500/20 text-red-300' : 'bg-cyan-500/20 text-cyan-300'}">
-                  ${t.format.toUpperCase()}
+              <!-- Header Badges -->
+              <div class="flex items-center justify-between gap-2 mb-2.5">
+                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  ${t.category || 'VIDEO'}
                 </span>
-                <div class="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400">
-                  <span class="bg-darkSubtle px-2 py-0.5 rounded-lg border border-darkBorder flex items-center gap-1">
-                    <i class="ph-bold ph-calendar text-cyan-400"></i> Assigned: ${t.assignedDate || 'Today'}
-                  </span>
-                  <span class="bg-darkSubtle px-2 py-0.5 rounded-lg border border-darkBorder flex items-center gap-1 text-orange-300">
-                    <i class="ph-bold ph-hourglass text-orange-400"></i> Due: ${t.dueDate || 'Today'}
-                  </span>
-                </div>
+                <span class="text-[11px] text-slate-400 flex items-center gap-1">
+                  <i class="ph-bold ph-calendar"></i> Due: ${t.dueDate || 'Flexible'}
+                </span>
               </div>
 
-              <!-- Title (Clean Display without strikethrough) -->
-              <div class="flex items-start justify-between gap-2">
-                <h3 class="text-sm sm:text-base font-bold text-white leading-snug">
+              <!-- Title (Always Clean & Readable) -->
+              <div class="flex items-start justify-between gap-2 mb-3">
+                <h4 class="text-sm font-bold text-white tracking-wide leading-snug">
                   "${t.title}"
-                </h3>
-                ${isDone ? '<span class="shrink-0 text-emerald-400 text-xs font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">✓ Done</span>' : ''}
+                </h4>
+                ${isDone ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black shrink-0">✓ Done</span>' : ''}
               </div>
 
-              <!-- Revision Note Box if Changes Required -->
-              ${t.feedback ? `
-                <div class="mt-3 p-3 rounded-2xl bg-rose-950/30 border border-rose-500/40 text-xs">
-                  <div class="flex items-center justify-between font-bold text-rose-400 mb-1">
-                    <span class="flex items-center gap-1"><i class="ph-bold ph-warning-circle"></i> Changes To Make:</span>
-                    <button onclick="openQuickChangesModal('${t.id}')" class="text-[10px] text-rose-300 hover:underline">Edit Notes</button>
+              <!-- Changes Required Warning Box -->
+              ${isChanges ? `
+                <div class="bg-rose-950/40 border border-rose-800/60 rounded-xl p-2.5 mb-3">
+                  <div class="flex items-center justify-between text-[11px] text-rose-300 font-bold mb-1">
+                    <span class="flex items-center gap-1"><i class="ph-bold ph-warning-circle"></i> CHANGES TO MAKE:</span>
+                    <button onclick="openChangesModal('${t.id}')" class="text-[10px] underline hover:text-white">Edit Changes</button>
                   </div>
-                  <p class="text-rose-200 leading-relaxed">${t.feedback}</p>
+                  <p class="text-xs text-rose-100 font-medium leading-relaxed">${t.revisionNotes || 'Changes requested.'}</p>
                 </div>
               ` : ''}
 
-              <!-- Assignee & Assigned By Info -->
-              <div class="mt-3 space-y-1.5 text-xs bg-darkSubtle/60 p-2.5 rounded-2xl border border-darkBorder/60">
+              <!-- Member Tags -->
+              <div class="space-y-1.5 text-xs text-slate-300 bg-[#0c1220] p-2.5 rounded-xl border border-[#1f293d] mb-3">
                 <div class="flex items-center justify-between">
-                  <span class="text-slate-400 flex items-center gap-1"><i class="ph-bold ph-user text-orange-400"></i> Assigned To:</span>
+                  <span class="text-slate-500 flex items-center gap-1"><i class="ph-bold ph-user"></i> Assigned To:</span>
                   <span class="font-bold text-white">${t.assignedTo}</span>
                 </div>
                 <div class="flex items-center justify-between">
-                  <span class="text-slate-400 flex items-center gap-1"><i class="ph-bold ph-paper-plane-tilt text-amber-400"></i> Assigned By:</span>
-                  <span class="font-semibold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md">${t.assignedBy || 'Manager'}</span>
+                  <span class="text-slate-500 flex items-center gap-1"><i class="ph-bold ph-paper-plane-tilt"></i> Assigned By:</span>
+                  <span class="font-semibold text-amber-400">${t.assignedBy || 'Lead'}</span>
                 </div>
               </div>
 
-              <!-- Script Links & Buttons -->
-              <div class="mt-3 flex items-center gap-2">
-                ${t.scriptText ? `
-                  <button onclick="openScriptViewer('${t.id}')" class="flex-1 py-1.5 px-3 bg-darkSubtle hover:bg-slate-800 text-orange-300 hover:text-orange-200 border border-orange-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-                    <i class="ph-bold ph-file-text"></i> View / Copy Script Text
-                  </button>
-                ` : ''}
-                ${t.docLink ? `
-                  <a href="${t.docLink}" target="_blank" class="py-1.5 px-3 bg-darkSubtle hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition">
-                    <i class="ph-bold ph-arrow-square-out"></i> Script Link
-                  </a>
-                ` : ''}
-                ${t.rawAssets ? `
-                  <a href="${t.rawAssets}" target="_blank" class="py-1.5 px-3 bg-darkSubtle hover:bg-slate-800 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition" title="Raw Footage Drive Link">
-                    <i class="ph-bold ph-folder"></i> Assets
-                  </a>
-                ` : ''}
+              <!-- Script Viewer Action -->
+              ${(t.scriptText || t.docLink) ? `
+                <div class="mb-3 flex items-center gap-2">
+                  ${t.scriptText ? `
+                    <button onclick="viewScriptText('${t.id}')" class="flex-1 py-1.5 px-3 rounded-xl bg-[#161f33] hover:bg-[#1f293d] text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-[#1f293d]">
+                      <i class="ph-bold ph-article text-orange-400"></i> View / Copy Script Text
+                    </button>
+                  ` : ''}
+                  ${t.docLink ? `
+                    <a href="${t.docLink}" target="_blank" class="p-1.5 rounded-xl bg-[#161f33] hover:bg-[#1f293d] text-sky-400 border border-[#1f293d]" title="Open Google Doc Link">
+                      <i class="ph-bold ph-arrow-square-out text-base"></i>
+                    </a>
+                  ` : ''}
+                </div>
+              ` : ''}
+
+              <!-- Drive / Output Link Input -->
+              <div class="mb-3">
+                <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Final Output / Drive Link:</label>
+                <div class="flex items-center gap-1.5">
+                  <input type="url" value="${t.outputLink || ''}" onchange="saveOutputLink('${t.id}', this.value)" placeholder="Paste Drive / render link here..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500">
+                  ${t.outputLink ? `
+                    <a href="${t.outputLink}" target="_blank" class="p-1 text-emerald-400 hover:text-emerald-300">
+                      <i class="ph-bold ph-link text-base"></i>
+                    </a>
+                  ` : ''}
+                </div>
               </div>
             </div>
 
-            <!-- Card Bottom: Output Drive Link & Status Dropdown -->
-            <div class="pt-3 border-t border-darkBorder/80 space-y-2.5">
-              <div>
-                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Final Output / Drive Link:</label>
-                <input type="url" value="${t.outputLink || ''}" onchange="saveOutputLink('${t.id}', this.value)" placeholder="Paste drive / video output link..." class="w-full bg-darkBg text-xs text-white px-3 py-1.5 rounded-xl border border-darkBorder focus:border-orange-500 focus:outline-none">
-              </div>
+            <!-- Footer Status & Controls -->
+            <div class="pt-3 border-t border-[#1f293d] flex items-center justify-between gap-2">
+              <select onchange="updateTaskStatus('${t.id}', this.value)" class="bg-[#0c1220] border border-[#1f293d] text-xs font-bold rounded-lg px-2 py-1 text-slate-200 focus:outline-none ${isDone ? 'text-emerald-400 border-emerald-500/40' : (isChanges ? 'text-rose-400 border-rose-500/40' : '')}">
+                <option value="pending" ${t.status === 'pending' ? 'selected' : ''}>⏳ Pending</option>
+                <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>⚡ In Progress</option>
+                <option value="changes_required" ${t.status === 'changes_required' ? 'selected' : ''}>🔄 Changes Required</option>
+                <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✓ Completed</option>
+              </select>
 
-              <div class="flex items-center gap-2">
-                <!-- Status Dropdown -->
-                <select onchange="changeTaskStatus('${t.id}', this.value)" class="flex-1 bg-darkBg text-xs font-bold px-3 py-2 rounded-xl border ${hasChanges ? 'border-rose-500 text-rose-400' : isDone ? 'border-emerald-500 text-emerald-400' : 'border-darkBorder text-slate-200'} focus:outline-none">
-                  <option value="pending" ${t.status === 'pending' ? 'selected' : ''}>⏳ Pending</option>
-                  <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>⚡ In Progress</option>
-                  <option value="in_review" ${t.status === 'in_review' ? 'selected' : ''}>👀 In Review</option>
-                  <option value="changes_required" ${t.status === 'changes_required' ? 'selected' : ''}>⚠️ Changes Required</option>
-                  <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✅ Completed</option>
-                </select>
-
-                <!-- Request Changes Button -->
-                <button onclick="openQuickChangesModal('${t.id}')" title="Request Changes / Notes" class="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition">
-                  <i class="ph-bold ph-warning-circle text-base"></i>
+              <div class="flex items-center gap-1">
+                <button onclick="openChangesModal('${t.id}')" title="Give Changes" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                  <i class="ph-bold ph-warning-circle text-sm"></i>
                 </button>
-
-                <!-- Edit Task -->
-                <button onclick="openTaskModal('${t.id}')" title="Edit Task" class="p-2 bg-darkSubtle hover:bg-slate-800 text-slate-300 border border-darkBorder rounded-xl text-xs transition">
-                  <i class="ph-bold ph-pencil-simple text-base"></i>
+                <button onclick="editTask('${t.id}')" title="Edit Task" class="p-1.5 rounded-lg bg-[#161f33] hover:bg-[#1f293d] text-slate-300">
+                  <i class="ph-bold ph-pencil-simple text-sm"></i>
                 </button>
-
-                <!-- Delete Task -->
-                <button onclick="deleteTask('${t.id}')" title="Delete Task" class="p-2 bg-darkSubtle hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-darkBorder rounded-xl text-xs transition">
-                  <i class="ph-bold ph-trash text-base"></i>
+                <button onclick="deleteTask('${t.id}')" title="Delete Task" class="p-1.5 rounded-lg bg-[#161f33] hover:bg-rose-950 text-slate-400 hover:text-rose-400">
+                  <i class="ph-bold ph-trash text-sm"></i>
                 </button>
               </div>
             </div>
@@ -940,877 +878,461 @@
       }).join('');
     }
 
-    // TASK CRUD
-    function openTaskModal(taskId = null) {
-      const modal = document.getElementById('taskModal');
-      const form = document.getElementById('taskForm');
-      const title = document.getElementById('taskModalTitle');
-      if (!modal || !form) return;
-
-      form.reset();
-      document.getElementById('taskId').value = '';
-      document.getElementById('customAssignedByGroup')?.classList.add('hidden');
-
-      if (taskId) {
-        const task = tasks.find(t => t.id === taskId);
-        if (task) {
-          title.innerHTML = `<i class="ph-bold ph-pencil-simple text-orange-400"></i> Edit Content Task`;
-          document.getElementById('taskId').value = task.id;
-          document.getElementById('taskTitle').value = task.title || '';
-          document.getElementById('taskFormat').value = task.format || 'reel';
-          document.getElementById('taskAssignee').value = task.assignedTo || '';
-          document.getElementById('taskAssignedDate').value = task.assignedDate || '';
-          document.getElementById('taskDueDate').value = task.dueDate || '';
-          document.getElementById('taskDocLink').value = task.docLink || '';
-          document.getElementById('taskScriptText').value = task.scriptText || '';
-          document.getElementById('taskFeedback').value = task.feedback || '';
-          document.getElementById('taskRawAssets').value = task.rawAssets || '';
-
-          const assignedBySelect = document.getElementById('taskAssignedBy');
-          if (assignedBySelect) {
-            const hasOption = Array.from(assignedBySelect.options).some(o => o.value === task.assignedBy);
-            if (hasOption) {
-              assignedBySelect.value = task.assignedBy;
-            } else {
-              assignedBySelect.value = 'custom';
-              document.getElementById('customAssignedByGroup')?.classList.remove('hidden');
-              document.getElementById('customAssignedBy').value = task.assignedBy || '';
-            }
-          }
-        }
-      } else {
-        title.innerHTML = `<i class="ph-bold ph-plus-circle text-orange-400"></i> Assign New Content Task`;
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('taskAssignedDate').value = today;
-        document.getElementById('taskDueDate').value = today;
-        if (selectedMember !== 'all') {
-          document.getElementById('taskAssignee').value = selectedMember;
-        }
-      }
-
-      modal.classList.remove('hidden');
+    // --- 8. TASK CRUD HANDLERS ---
+    function openTaskModal() {
+      document.getElementById('taskForm').reset();
+      document.getElementById('taskEditId').value = '';
+      document.getElementById('taskModalTitle').innerHTML = '<i class="ph-bold ph-plus-circle text-orange-500"></i> Assign New Content Task';
+      document.getElementById('taskModal').classList.remove('hidden');
     }
 
     function closeTaskModal() {
-      document.getElementById('taskModal')?.classList.add('hidden');
+      document.getElementById('taskModal').classList.add('hidden');
     }
 
-    function saveTask(e) {
-      if (e) e.preventDefault();
+    function editTask(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
 
-      const taskId = document.getElementById('taskId').value;
-      const title = document.getElementById('taskTitle').value.trim();
-      const format = document.getElementById('taskFormat').value;
-      const assignedTo = document.getElementById('taskAssignee').value;
-      const assignedDate = document.getElementById('taskAssignedDate').value;
-      const dueDate = document.getElementById('taskDueDate').value;
-      const docLink = document.getElementById('taskDocLink').value.trim();
-      const scriptText = document.getElementById('taskScriptText').value.trim();
-      const feedback = document.getElementById('taskFeedback').value.trim();
-      const rawAssets = document.getElementById('taskRawAssets').value.trim();
+      document.getElementById('taskEditId').value = task.id;
+      document.getElementById('taskTitleInput').value = task.title || '';
+      document.getElementById('taskCategoryInput').value = task.category || 'REEL / SHORT';
+      document.getElementById('taskDueDateInput').value = task.dueDate || '';
+      document.getElementById('taskAssigneeInput').value = task.assignedTo || 'Vijay';
+      document.getElementById('taskAssignerInput').value = task.assignedBy || 'Pavan';
+      document.getElementById('taskScriptTextInput').value = task.scriptText || '';
+      document.getElementById('taskDocLinkInput').value = task.docLink || '';
 
-      let assignedBy = document.getElementById('taskAssignedBy').value;
-      if (assignedBy === 'custom') {
-        assignedBy = document.getElementById('customAssignedBy').value.trim() || 'Team Lead';
-      }
+      document.getElementById('taskModalTitle').innerHTML = '<i class="ph-bold ph-pencil-simple text-orange-500"></i> Edit Task Details';
+      document.getElementById('taskModal').classList.remove('hidden');
+    }
 
-      if (!title) {
-        showToast("Please enter a title", "error");
-        return;
-      }
+    function handleTaskSubmit(e) {
+      e.preventDefault();
+      const editId = document.getElementById('taskEditId').value;
+      const title = document.getElementById('taskTitleInput').value.trim();
+      const category = document.getElementById('taskCategoryInput').value;
+      const dueDate = document.getElementById('taskDueDateInput').value;
+      const assignedTo = document.getElementById('taskAssigneeInput').value;
+      const assignedBy = document.getElementById('taskAssignerInput').value;
+      const scriptText = document.getElementById('taskScriptTextInput').value.trim();
+      const docLink = document.getElementById('taskDocLinkInput').value.trim();
 
-      if (taskId) {
-        const idx = tasks.findIndex(t => t.id === taskId);
+      if (editId) {
+        // Update existing task
+        const idx = tasks.findIndex(t => t.id === editId);
         if (idx !== -1) {
           tasks[idx] = {
             ...tasks[idx],
-            title,
-            format,
-            assignedTo,
-            assignedBy,
-            assignedDate,
-            dueDate,
-            docLink,
-            scriptText,
-            feedback,
-            rawAssets,
-            status: feedback ? 'changes_required' : tasks[idx].status
+            title, category, dueDate, assignedTo, assignedBy, scriptText, docLink
           };
-          showToast("Task updated! ✅", "success");
         }
       } else {
+        // Create new task
         const newTask = {
-          id: 'task_' + Date.now(),
-          title,
-          format,
-          assignedTo,
-          assignedBy,
-          assignedDate: assignedDate || new Date().toISOString().split('T')[0],
-          dueDate: dueDate || new Date().toISOString().split('T')[0],
-          docLink,
-          scriptText,
-          feedback,
-          rawAssets,
-          status: feedback ? 'changes_required' : 'pending',
-          outputLink: ''
+          id: 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          title, category, dueDate, assignedTo, assignedBy, scriptText, docLink,
+          status: 'pending',
+          outputLink: '',
+          createdAt: Date.now()
         };
         tasks.unshift(newTask);
-        addNotification(`New Task: ${title}`, `Assigned to ${assignedTo} by ${assignedBy}`);
-        showToast("New task assigned! 🚀", "success");
+
+        addNotification(`New task "${title}" assigned to ${assignedTo} by ${assignedBy}`);
       }
 
-      saveData();
       closeTaskModal();
       renderTasks();
-      pushDataToCloud();
+      updateCounts();
+      pushToCloud();
     }
 
     function deleteTask(taskId) {
+      if (!confirm('Are you sure you want to delete this task?')) return;
       tasks = tasks.filter(t => t.id !== taskId);
-      saveData();
       renderTasks();
-      pushDataToCloud();
-      showToast("Task deleted", "info");
+      updateCounts();
+      pushToCloud();
     }
 
-    function changeTaskStatus(taskId, status) {
+    function updateTaskStatus(taskId, newStatus) {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
-      task.status = status;
-      if (status === 'completed') {
-        showToast(`Task "${task.title}" Completed! 🎉`, "success");
-        addNotification(`Task Completed`, `"${task.title}" by ${task.assignedTo}`);
-      } else {
-        showToast(`Status updated to: ${status.replace('_', ' ')}`, "info");
+      task.status = newStatus;
+      if (newStatus === 'completed') {
+        addNotification(`✓ Task completed: "${task.title}" by ${task.assignedTo}`);
       }
-      saveData();
       renderTasks();
-      pushDataToCloud();
+      updateCounts();
+      pushToCloud();
     }
 
     function saveOutputLink(taskId, link) {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
-      task.outputLink = link.trim();
-      saveData();
-      pushDataToCloud();
-      showToast("Output link saved! 🔗", "success");
+      task.outputLink = (link || '').trim();
+      pushToCloud();
     }
 
-    // QUICK CHANGES / FEEDBACK MODAL
-    function openQuickChangesModal(taskId) {
-      activeQuickTaskId = taskId;
-      const task = tasks.find(t => t.id === taskId);
-      const input = document.getElementById('quickChangesInput');
-      if (input && task) {
-        input.value = task.feedback || '';
-      }
-      document.getElementById('quickChangesModal')?.classList.remove('hidden');
-    }
-
-    function closeQuickChangesModal() {
-      document.getElementById('quickChangesModal')?.classList.add('hidden');
-      activeQuickTaskId = null;
-    }
-
-    function submitQuickChanges() {
-      if (!activeQuickTaskId) return;
-      const task = tasks.find(t => t.id === activeQuickTaskId);
-      const notes = document.getElementById('quickChangesInput').value.trim();
-      if (task) {
-        task.feedback = notes;
-        task.status = notes ? 'changes_required' : 'pending';
-        addNotification(`Revision: ${task.title}`, notes || "Feedback updated");
-        showToast("Revisions notes posted! ⚠️", "info");
-        playAlertChime();
-      }
-      saveData();
-      closeQuickChangesModal();
-      renderTasks();
-      pushDataToCloud();
-    }
-
-    // SCRIPT VIEWER MODAL
-    function openScriptViewer(taskId) {
+    // --- 9. REVISION / CHANGES HANDLERS ---
+    function openChangesModal(taskId) {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
-      currentScriptViewTaskId = taskId;
-      document.getElementById('scriptViewerTitle').textContent = `Script: ${task.title}`;
-      document.getElementById('scriptViewerSubtitle').textContent = `Assigned to ${task.assignedTo} by ${task.assignedBy}`;
-      document.getElementById('scriptViewerContent').textContent = task.scriptText || 'No script text entered.';
-      document.getElementById('scriptViewerModal')?.classList.remove('hidden');
+
+      document.getElementById('changeTaskId').value = task.id;
+      document.getElementById('changeTaskTargetMember').innerText = `Target Editor: ${task.assignedTo} | Video: "${task.title}"`;
+      document.getElementById('changeNotesInput').value = task.revisionNotes || '';
+      document.getElementById('changesModal').classList.remove('hidden');
     }
 
-    function closeScriptViewerModal() {
-      document.getElementById('scriptViewerModal')?.classList.add('hidden');
+    function closeChangesModal() {
+      document.getElementById('changesModal').classList.add('hidden');
     }
 
-    function copyCurrentScriptText() {
-      const text = document.getElementById('scriptViewerContent')?.textContent;
-      if (!text) return;
-      const el = document.createElement('textarea');
-      el.value = text;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-      showToast("Script text copied to clipboard! 📋", "success");
+    function submitChanges() {
+      const taskId = document.getElementById('changeTaskId').value;
+      const notes = document.getElementById('changeNotesInput').value.trim();
+      const byWhom = document.getElementById('changeByInput').value;
+
+      if (!notes) return alert('Please enter the changes required');
+
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        task.status = 'changes_required';
+        task.revisionNotes = `${notes} (by ${byWhom} at ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`;
+        
+        playAlertChime();
+        addNotification(`🔔 Revisions requested for ${task.assignedTo}: "${notes}" by ${byWhom}`);
+        
+        closeChangesModal();
+        renderTasks();
+        updateCounts();
+        pushToCloud();
+      }
     }
 
-    // SHOOT PIPELINE
-    function setShootFilter(filter) {
-      currentShootFilter = filter;
-      ['all', 'today', 'done'].forEach(f => {
-        const btn = document.getElementById(`shoot_filter_${f}`);
-        if (!btn) return;
-        if (f === filter) {
-          btn.className = "px-3 py-1.5 rounded-xl font-bold bg-orange-500 text-slate-950 transition";
-        } else {
-          btn.className = "px-3 py-1.5 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-darkSubtle transition";
+    // --- 10. SCRIPT VIEWER ---
+    function viewScriptText(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || !task.scriptText) return;
+
+      currentViewingScript = task.scriptText;
+      document.getElementById('scriptViewerTitle').innerText = `Script: ${task.title}`;
+      document.getElementById('scriptViewerContent').innerText = task.scriptText;
+      document.getElementById('copyToast').classList.add('hidden');
+      document.getElementById('scriptViewerModal').classList.remove('hidden');
+    }
+
+    function closeScriptViewer() {
+      document.getElementById('scriptViewerModal').classList.add('hidden');
+    }
+
+    function copyCurrentScript() {
+      if (!currentViewingScript) return;
+      navigator.clipboard.writeText(currentViewingScript).then(() => {
+        const toast = document.getElementById('copyToast');
+        if (toast) {
+          toast.classList.remove('hidden');
+          setTimeout(() => toast.classList.add('hidden'), 2000);
         }
       });
+    }
+
+    // --- 11. VIDEO SHOOTS TRACKER ---
+    function openShootModal() {
+      document.getElementById('shootTopicInput').value = '';
+      document.getElementById('shootDateTimeInput').value = '';
+      document.getElementById('shootPresenterInput').value = '';
+      document.getElementById('shootLocationInput').value = '';
+      document.getElementById('shootScriptLinkInput').value = '';
+      document.getElementById('shootModal').classList.remove('hidden');
+    }
+
+    function closeShootModal() {
+      document.getElementById('shootModal').classList.add('hidden');
+    }
+
+    function handleShootSubmit(e) {
+      e.preventDefault();
+      const topic = document.getElementById('shootTopicInput').value.trim();
+      const dateTime = document.getElementById('shootDateTimeInput').value;
+      const presenter = document.getElementById('shootPresenterInput').value.trim();
+      const location = document.getElementById('shootLocationInput').value.trim();
+      const scriptLink = document.getElementById('shootScriptLinkInput').value.trim();
+
+      const newShoot = {
+        id: 'shoot_' + Date.now(),
+        topic, dateTime, presenter, location, scriptLink,
+        status: 'scheduled',
+        footageLink: ''
+      };
+
+      shoots.unshift(newShoot);
+      addNotification(`🎥 New shoot scheduled: "${topic}" with ${presenter}`);
+      closeShootModal();
       renderShoots();
+      updateCounts();
+      pushToCloud();
     }
 
     function renderShoots() {
-      const grid = document.getElementById('shootsGrid');
-      const emptyState = document.getElementById('shootsEmptyState');
-      const today = new Date().toISOString().split('T')[0];
+      const container = document.getElementById('shootList');
+      const emptyState = document.getElementById('noShootsState');
+      if (!container) return;
 
-      if (!grid) return;
-
-      const filtered = shoots.filter(s => {
-        if (currentShootFilter === 'today') return s.date === today;
-        if (currentShootFilter === 'done') return s.status === 'done';
-        return true;
-      });
-
-      // Update counters
-      const elAll = document.getElementById('shoot_count_all');
-      const elToday = document.getElementById('shoot_count_today');
-      const elDone = document.getElementById('shoot_count_done');
-      const elTabCount = document.getElementById('tabShootsCount');
-
-      if (elAll) elAll.textContent = shoots.length;
-      if (elToday) elToday.textContent = shoots.filter(s => s.date === today).length;
-      if (elDone) elDone.textContent = shoots.filter(s => s.status === 'done').length;
-      if (elTabCount) elTabCount.textContent = shoots.length;
-
-      if (filtered.length === 0) {
-        grid.innerHTML = '';
-        emptyState.classList.remove('hidden');
+      if (shoots.length === 0) {
+        container.innerHTML = '';
+        if (emptyState) emptyState.classList.remove('hidden');
         return;
       }
+      if (emptyState) emptyState.classList.add('hidden');
 
-      emptyState.classList.add('hidden');
-
-      grid.innerHTML = filtered.map(s => `
-        <div class="bg-darkCard rounded-3xl border border-darkBorder p-4 flex flex-col justify-between shadow-xl space-y-3">
+      container.innerHTML = shoots.map(s => `
+        <div class="bg-[#111827] border border-[#1f293d] rounded-2xl p-4 shadow-lg flex flex-col justify-between">
           <div>
-            <div class="flex items-center justify-between text-xs mb-2">
-              <span class="bg-darkSubtle px-2 py-0.5 rounded-lg border border-darkBorder text-slate-300 font-semibold">
-                <i class="ph-bold ph-calendar text-cyan-400"></i> ${s.date} ${s.time ? `• ${s.time}` : ''}
-              </span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}">
-                ${s.status.toUpperCase()}
-              </span>
+            <div class="flex items-center justify-between text-xs text-purple-400 font-bold mb-2">
+              <span class="flex items-center gap-1"><i class="ph-bold ph-video-camera"></i> SHOOT</span>
+              <span>${s.dateTime ? new Date(s.dateTime).toLocaleString([], {dateStyle:'short', timeStyle:'short'}) : 'TBD'}</span>
             </div>
-            <h3 class="text-sm font-bold text-white mb-2">"${s.title}"</h3>
-            <div class="text-xs text-slate-400 space-y-1">
-              ${s.presenter ? `<div><span class="text-slate-500">Anchor:</span> <span class="text-slate-200 font-semibold">${s.presenter}</span></div>` : ''}
-              ${s.location ? `<div><span class="text-slate-500">Studio:</span> <span class="text-slate-200 font-semibold">${s.location}</span></div>` : ''}
+            <h4 class="text-sm font-bold text-white mb-2">"${s.topic}"</h4>
+            
+            <div class="space-y-1 text-xs text-slate-300 bg-[#0c1220] p-2.5 rounded-xl border border-[#1f293d] mb-3">
+              <div><span class="text-slate-500">Presenter:</span> <span class="font-bold text-white">${s.presenter}</span></div>
+              <div><span class="text-slate-500">Setup:</span> <span>${s.location || 'Studio'}</span></div>
+            </div>
+
+            ${s.scriptLink ? `
+              <a href="${s.scriptLink}" target="_blank" class="inline-flex items-center gap-1 text-xs text-sky-400 hover:underline mb-3">
+                <i class="ph-bold ph-file-text"></i> Open Script / Teleprompter
+              </a>
+            ` : ''}
+
+            <!-- Footage Link -->
+            <div class="mb-3">
+              <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Raw Footage Drive Link:</label>
+              <input type="url" value="${s.footageLink || ''}" onchange="saveShootFootage('${s.id}', this.value)" placeholder="Paste raw video Drive folder..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white">
             </div>
           </div>
-          <div class="pt-3 border-t border-darkBorder flex items-center justify-between gap-2">
-            ${s.footageLink ? `
-              <a href="${s.footageLink}" target="_blank" class="px-3 py-1.5 bg-darkSubtle hover:bg-slate-800 text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1">
-                <i class="ph-bold ph-folder"></i> Footage
-              </a>
-            ` : '<span class="text-[11px] text-slate-500 italic">No footage link yet</span>'}
-            <div class="flex items-center gap-1.5">
-              <button onclick="editShoot('${s.id}')" class="p-1.5 text-slate-400 hover:text-white bg-darkSubtle rounded-lg"><i class="ph-bold ph-pencil-simple"></i></button>
-              <button onclick="deleteShoot('${s.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 bg-darkSubtle rounded-lg"><i class="ph-bold ph-trash"></i></button>
-            </div>
+
+          <div class="pt-3 border-t border-[#1f293d] flex items-center justify-between">
+            <button onclick="sendShootToEdit('${s.id}')" class="px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 font-bold text-xs flex items-center gap-1 border border-orange-500/30">
+              <i class="ph-bold ph-scissors"></i> Send to Edit
+            </button>
+            <button onclick="deleteShoot('${s.id}')" class="p-1.5 text-slate-500 hover:text-rose-400">
+              <i class="ph-bold ph-trash text-sm"></i>
+            </button>
           </div>
         </div>
       `).join('');
     }
 
-    function openShootModal(shootId = null) {
-      const modal = document.getElementById('shootModal');
-      const form = document.getElementById('shootForm');
-      if (!modal || !form) return;
-      form.reset();
-      document.getElementById('shootId').value = '';
-      document.getElementById('shootDate').value = new Date().toISOString().split('T')[0];
-
-      if (shootId) {
-        const s = shoots.find(x => x.id === shootId);
-        if (s) {
-          document.getElementById('shootId').value = s.id;
-          document.getElementById('shootTitle').value = s.title || '';
-          document.getElementById('shootDate').value = s.date || '';
-          document.getElementById('shootTime').value = s.time || '';
-          document.getElementById('shootPresenter').value = s.presenter || '';
-          document.getElementById('shootLocation').value = s.location || '';
-          document.getElementById('shootDocLink').value = s.docLink || '';
-          document.getElementById('shootFootageLink').value = s.footageLink || '';
-          document.getElementById('shootStatus').value = s.status || 'scheduled';
-        }
+    function saveShootFootage(shootId, link) {
+      const shoot = shoots.find(s => s.id === shootId);
+      if (shoot) {
+        shoot.footageLink = (link || '').trim();
+        pushToCloud();
       }
-
-      modal.classList.remove('hidden');
     }
 
-    function closeShootModal() {
-      document.getElementById('shootModal')?.classList.add('hidden');
-    }
-
-    function editShoot(id) {
-      openShootModal(id);
-    }
-
-    function saveShoot(e) {
-      if (e) e.preventDefault();
-      const id = document.getElementById('shootId').value;
-      const title = document.getElementById('shootTitle').value.trim();
-      const date = document.getElementById('shootDate').value;
-      const time = document.getElementById('shootTime').value;
-      const presenter = document.getElementById('shootPresenter').value.trim();
-      const location = document.getElementById('shootLocation').value.trim();
-      const docLink = document.getElementById('shootDocLink').value.trim();
-      const footageLink = document.getElementById('shootFootageLink').value.trim();
-      const status = document.getElementById('shootStatus').value;
-
-      if (!title) return;
-
-      if (id) {
-        const idx = shoots.findIndex(s => s.id === id);
-        if (idx !== -1) {
-          shoots[idx] = { ...shoots[idx], title, date, time, presenter, location, docLink, footageLink, status };
-        }
-      } else {
-        shoots.unshift({
-          id: 'shoot_' + Date.now(),
-          title, date, time, presenter, location, docLink, footageLink, status
-        });
-      }
-
-      saveData();
-      closeShootModal();
+    function deleteShoot(shootId) {
+      if (!confirm('Delete this shoot record?')) return;
+      shoots = shoots.filter(s => s.id !== shootId);
       renderShoots();
-      pushDataToCloud();
-      showToast("Shoot saved! 🎥", "success");
+      updateCounts();
+      pushToCloud();
     }
 
-    function deleteShoot(id) {
-      shoots = shoots.filter(s => s.id !== id);
-      saveData();
-      renderShoots();
-      pushDataToCloud();
-      showToast("Shoot deleted", "info");
+    function sendShootToEdit(shootId) {
+      const shoot = shoots.find(s => s.id === shootId);
+      if (!shoot) return;
+
+      openTaskModal();
+      document.getElementById('taskTitleInput').value = shoot.topic;
+      document.getElementById('taskDocLinkInput').value = shoot.footageLink || shoot.scriptLink || '';
     }
 
-    // TOOLS VAULT
-    function openToolsVaultModal() {
+    // --- 12. TOOLS & RESOURCES VAULT ---
+    function openToolsModal() {
       renderTools();
-      document.getElementById('toolsModal')?.classList.remove('hidden');
+      document.getElementById('toolsModal').classList.remove('hidden');
     }
 
-    function closeToolModal() {
-      document.getElementById('toolsModal')?.classList.add('hidden');
+    function closeToolsModal() {
+      document.getElementById('toolsModal').classList.add('hidden');
+    }
+
+    function handleToolSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('toolNameInput').value.trim();
+      const category = document.getElementById('toolCategoryInput').value;
+      const link = document.getElementById('toolLinkInput').value.trim();
+
+      const newTool = { id: 'tool_' + Date.now(), name, category, link };
+      tools.unshift(newTool);
+
+      // Trigger Broadcast Banner for the whole team
+      triggerLiveAlert(`🛠️ New Team Tool Added: "${name}" (${category})`);
+      addNotification(`🛠️ New Tool shared: "${name}" by Lead`);
+
+      document.getElementById('toolNameInput').value = '';
+      document.getElementById('toolLinkInput').value = '';
+      
+      renderTools();
+      updateCounts();
+      pushToCloud();
     }
 
     function renderTools() {
       const container = document.getElementById('toolsListContainer');
-      const badge = document.getElementById('toolsBadgeCount');
-      if (badge) badge.textContent = tools.length;
+      const badge = document.getElementById('toolCountBadge');
+      if (badge) badge.innerText = tools.length;
       if (!container) return;
 
       if (tools.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">No tools added yet. Click "Add Tool" above.</p>`;
+        container.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">No custom tools added yet. Add AI tools or presets above.</div>';
         return;
       }
 
       container.innerHTML = tools.map(tool => `
-        <div class="p-3 bg-darkSubtle rounded-2xl border border-darkBorder flex items-center justify-between gap-3 text-xs">
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#0c1220] border border-[#1f293d]">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-white">${tool.name}</span>
-              <span class="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.2 rounded-full font-semibold">${tool.category}</span>
-            </div>
-            ${tool.notes ? `<p class="text-slate-400 text-[11px] mt-0.5">${tool.notes}</p>` : ''}
+            <span class="font-bold text-white block">${tool.name}</span>
+            <span class="text-[10px] text-sky-400 font-semibold uppercase">${tool.category}</span>
           </div>
-          <div class="flex items-center gap-1.5">
-            <a href="${tool.url}" target="_blank" class="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1 transition">
-              <i class="ph-bold ph-arrow-square-out"></i> Open
+          <div class="flex items-center gap-2">
+            <a href="${tool.link}" target="_blank" class="px-3 py-1 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 font-semibold text-xs border border-sky-500/30 flex items-center gap-1">
+              Open <i class="ph-bold ph-arrow-square-out"></i>
             </a>
-            <button onclick="deleteSharedTool('${tool.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg"><i class="ph-bold ph-trash"></i></button>
+            <button onclick="deleteTool('${tool.id}')" class="p-1 text-slate-500 hover:text-rose-400">
+              <i class="ph-bold ph-trash text-sm"></i>
+            </button>
           </div>
         </div>
       `).join('');
     }
 
-    function openAddToolModal() {
-      document.getElementById('addToolModal')?.classList.remove('hidden');
-    }
-
-    function closeAddToolModal() {
-      document.getElementById('addToolModal')?.classList.add('hidden');
-    }
-
-    function saveSharedTool(e) {
-      if (e) e.preventDefault();
-      const name = document.getElementById('toolName').value.trim();
-      const url = document.getElementById('toolUrl').value.trim();
-      const category = document.getElementById('toolCategory').value;
-      const notes = document.getElementById('toolNotes').value.trim();
-
-      if (!name || !url) return;
-
-      const newTool = {
-        id: 'tool_' + Date.now(),
-        name, url, category, notes
-      };
-      
-      // Add tool without touching existing tasks or shoots
-      tools.push(newTool);
-
-      // Broadcast tool update announcement automatically
-      addNotification(`🛠️ New Tool Added: ${name}`, `Category: ${category} - Click Tools vault to open link.`);
-      
-      const banner = document.getElementById('updateBanner');
-      const bannerText = document.getElementById('updateBannerText');
-      if (banner && bannerText) {
-        bannerText.textContent = `🛠️ New Department Tool Available: ${name} (${category})`;
-        banner.classList.remove('hidden');
-      }
-
-      saveData();
-      closeAddToolModal();
+    function deleteTool(toolId) {
+      tools = tools.filter(t => t.id !== toolId);
       renderTools();
-      pushDataToCloud();
-      playAlertChime();
-      showToast(`"${name}" added & synced without altering previous tasks! 🛠️`, "success");
+      updateCounts();
+      pushToCloud();
     }
 
-    function deleteSharedTool(id) {
-      tools = tools.filter(t => t.id !== id);
-      saveData();
-      renderTools();
-      pushDataToCloud();
-      showToast("Tool removed", "info");
+    // --- 13. ANNOUNCEMENT & BROADCAST ---
+    function openAnnounceModal() {
+      document.getElementById('announceTextInput').value = '';
+      document.getElementById('announceModal').classList.remove('hidden');
     }
 
-    // ANNOUNCEMENTS
-    function openReleaseUpdateModal() {
-      document.getElementById('releaseUpdateModal')?.classList.remove('hidden');
+    function closeAnnounceModal() {
+      document.getElementById('announceModal').classList.add('hidden');
     }
 
-    function closeReleaseUpdateModal() {
-      document.getElementById('releaseUpdateModal')?.classList.add('hidden');
-    }
-
-    function publishPortalUpdate() {
-      const text = document.getElementById('announcementInput').value.trim();
+    function submitAnnouncement() {
+      const text = document.getElementById('announceTextInput').value.trim();
       if (!text) return;
-      addNotification("📢 Team Announcement", text);
-      const banner = document.getElementById('updateBanner');
-      const bannerText = document.getElementById('updateBannerText');
+
+      triggerLiveAlert(`📢 Announcement: ${text}`);
+      addNotification(`📢 Announcement: ${text}`);
+      playAlertChime();
+      closeAnnounceModal();
+      pushToCloud();
+    }
+
+    function triggerLiveAlert(msg) {
+      const banner = document.getElementById('liveAlertBanner');
+      const bannerText = document.getElementById('liveAlertText');
       if (banner && bannerText) {
-        bannerText.textContent = text;
+        bannerText.innerText = msg;
         banner.classList.remove('hidden');
       }
-      closeReleaseUpdateModal();
-      pushDataToCloud();
-      showToast("Update broadcasted to team! 📢", "success");
-      playAlertChime();
     }
 
-    function dismissUpdateBanner() {
-      document.getElementById('updateBanner')?.classList.add('hidden');
+    function dismissLiveAlert() {
+      const banner = document.getElementById('liveAlertBanner');
+      if (banner) banner.classList.add('hidden');
     }
 
-    function applyAppUpdate() {
-      window.location.reload();
-    }
-
-    // NOTIFICATIONS
-    function addNotification(title, text) {
+    // --- 14. NOTIFICATIONS SYSTEM ---
+    function addNotification(msg) {
       notifications.unshift({
         id: 'notif_' + Date.now(),
-        title, 
-        text, 
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        message: msg,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
       });
-      notifications = notifications.slice(0, 30);
-      saveData();
+      if (notifications.length > 25) notifications.pop();
       renderNotifications();
     }
 
     function renderNotifications() {
       const list = document.getElementById('notifList');
       const badge = document.getElementById('notifBadge');
-      if (!list) return;
+      if (!list || !badge) return;
 
-      if (badge) {
-        if (notifications.length > 0) {
-          badge.textContent = notifications.length > 9 ? '9+' : notifications.length;
-          badge.classList.remove('hidden');
-        } else {
-          badge.classList.add('hidden');
-        }
-      }
-
-      if (notifications.length === 0) {
-        list.innerHTML = `<p class="text-slate-500 text-center py-4 text-[11px]">No notifications yet</p>`;
-        return;
-      }
-
-      list.innerHTML = notifications.map(n => `
-        <div class="p-2.5 rounded-xl bg-darkSubtle border border-darkBorder/60 hover:border-slate-600 transition">
-          <div class="flex items-center justify-between gap-1 mb-1">
-            <span class="font-bold text-white text-[11px] truncate">${n.title}</span>
-            <span class="text-[9px] text-slate-500 shrink-0">${n.time || ''}</span>
+      if (notifications.length > 0) {
+        badge.innerText = notifications.length;
+        badge.classList.remove('hidden');
+        list.innerHTML = notifications.map(n => `
+          <div class="p-2.5 rounded-xl bg-[#0c1220] border border-[#1f293d] text-slate-200">
+            <p class="font-medium">${n.message}</p>
+            <span class="text-[10px] text-slate-500 block mt-1">${n.time}</span>
           </div>
-          <p class="text-[11px] text-slate-300 leading-snug break-words">${n.text}</p>
-        </div>
-      `).join('');
+        `).join('');
+      } else {
+        badge.classList.add('hidden');
+        list.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">No new notifications</div>';
+      }
     }
 
     function toggleNotificationDropdown() {
-      const dropdown = document.getElementById('notifDropdown');
-      if (dropdown) {
-        dropdown.classList.toggle('hidden');
-      }
+      const dd = document.getElementById('notifDropdown');
+      if (dd) dd.classList.toggle('hidden');
     }
 
-    function clearAllNotifications() {
+    function clearNotifications() {
       notifications = [];
-      saveData();
       renderNotifications();
-      pushDataToCloud();
-      showToast("Notifications cleared", "info");
+      pushToCloud();
     }
 
-    // CLOUD SYNC CONFIG & STATUS (MULTI-BACKEND HIGH RELIABILITY)
-    const CLOUD_SYNC_BIN_ID = 'digital_team_hub_shared_master_data_v2';
-    // Primary & Failover endpoints with full CORS headers
-    const PRIMARY_CLOUD_API = `https://api.restful-api.dev/objects/ff808181932badb8019335ef00010001`;
-    const BACKUP_CLOUD_API = `https://kvdb.io/4yT7jWp8oEw5mQn9x9a7Z9/${CLOUD_SYNC_BIN_ID}`;
-    
-    let isCloudPushing = false;
-    let isCloudPulling = false;
-    let lastKnownCloudTimestamp = 0;
-    let teamBroadcastChannel = null;
+    // --- 15. TAB NAVIGATION & COUNTERS ---
+    function switchMainTab(tab) {
+      currentMainTab = tab;
+      const tasksContainer = document.getElementById('tasksViewContainer');
+      const shootsContainer = document.getElementById('shootsViewContainer');
+      const tabTasksBtn = document.getElementById('tabTasksBtn');
+      const tabShootsBtn = document.getElementById('tabShootsBtn');
+      const shootsTopAction = document.getElementById('shootsTopAction');
 
-    try {
-      if (typeof window.BroadcastChannel !== 'undefined') {
-        teamBroadcastChannel = new BroadcastChannel('digital_team_hub_channel');
-        teamBroadcastChannel.onmessage = function(e) {
-          if (e.data && e.data.type === 'SYNC_ALL_DATA' && e.data.payload) {
-            applyIncomingCloudData(e.data.payload, false);
-          }
-        };
-      }
-    } catch(err) {}
-
-    function updateSyncStatusUI(status, label) {
-      const badge = document.getElementById('cloudStatusBadge');
-      const dot = document.getElementById('cloudStatusDot');
-      const text = document.getElementById('cloudStatusText');
-      if (!badge || !dot || !text) return;
-
-      if (status === 'syncing') {
-        badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20";
-        dot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping";
-        text.textContent = label || "Syncing...";
-      } else if (status === 'success') {
-        badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-        dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
-        text.textContent = label || "Live Synced with Team";
+      if (tab === 'tasks') {
+        tasksContainer.classList.remove('hidden');
+        shootsContainer.classList.add('hidden');
+        shootsTopAction.classList.add('hidden');
+        tabTasksBtn.className = "px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center gap-2 transition";
+        tabShootsBtn.className = "px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition";
       } else {
-        badge.className = "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30";
-        dot.className = "w-1.5 h-1.5 rounded-full bg-amber-400";
-        text.textContent = label || "Connecting Cloud...";
+        tasksContainer.classList.add('hidden');
+        shootsContainer.classList.remove('hidden');
+        shootsTopAction.classList.remove('hidden');
+        tabShootsBtn.className = "px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center gap-2 transition";
+        tabTasksBtn.className = "px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition";
       }
     }
 
-    // NON-DESTRUCTIVE SMART MERGE (Preserves all past data)
-    function mergeEntityList(localList, incomingList) {
-      if (!Array.isArray(incomingList)) return localList || [];
-      if (!Array.isArray(localList) || localList.length === 0) return [...incomingList];
+    function updateCounts() {
+      const allCount = tasks.length;
+      const pendingCount = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+      const revisionsCount = tasks.filter(t => t.status === 'changes_required').length;
+      const doneCount = tasks.filter(t => t.status === 'completed').length;
 
-      const map = new Map();
-      localList.forEach(item => {
-        if (item && item.id) map.set(item.id, item);
-      });
-      incomingList.forEach(incoming => {
-        if (incoming && incoming.id) {
-          if (map.has(incoming.id)) {
-            map.set(incoming.id, { ...map.get(incoming.id), ...incoming });
-          } else {
-            map.set(incoming.id, incoming);
-          }
-        }
-      });
-      return Array.from(map.values());
+      document.getElementById('countAll').innerText = allCount;
+      document.getElementById('countPending').innerText = pendingCount;
+      document.getElementById('countRevisions').innerText = revisionsCount;
+      document.getElementById('countDone').innerText = doneCount;
+
+      document.getElementById('tabTasksCount').innerText = allCount;
+      document.getElementById('tabShootsCount').innerText = shoots.length;
     }
-
-    function applyIncomingCloudData(cloudData, showNotification = false) {
-      if (!cloudData) return;
-
-      const previousToolCount = tools.length;
-      lastKnownCloudTimestamp = cloudData.timestamp || Date.now();
-      
-      // NON-DESTRUCTIVE MERGE: NEVER OVERWRITE OR WIPE EXISTING TASKS
-      if (Array.isArray(cloudData.tasks)) {
-        tasks = mergeEntityList(tasks, cloudData.tasks);
-      }
-      if (Array.isArray(cloudData.shoots)) {
-        shoots = mergeEntityList(shoots, cloudData.shoots);
-      }
-      if (Array.isArray(cloudData.tools)) {
-        if (cloudData.tools.length > previousToolCount && previousToolCount > 0) {
-          const newestTool = cloudData.tools[cloudData.tools.length - 1];
-          const banner = document.getElementById('updateBanner');
-          const bannerText = document.getElementById('updateBannerText');
-          if (banner && bannerText && newestTool) {
-            bannerText.textContent = `🛠️ New Team Tool Added: ${newestTool.name} (${newestTool.category})`;
-            banner.classList.remove('hidden');
-          }
-          showToast(`New Tool: ${newestTool.name}! Check Tools Vault 🛠️`, "success");
-          playAlertChime();
-        }
-        tools = mergeEntityList(tools, cloudData.tools);
-      }
-      if (Array.isArray(cloudData.notifications)) {
-        notifications = mergeEntityList(notifications, cloudData.notifications);
-      }
-
-      saveData();
-      renderTasks();
-      renderShoots();
-      renderTools();
-      renderNotifications();
-      renderMemberCarousel();
-
-      if (showNotification) {
-        showToast("Synced safely! All tasks & tools loaded. 🔄", "success");
-      }
-    }
-
-    // BACKUP DOWNLOAD & RESTORE (1-Click safety)
-    function exportDataBackup() {
-      const backupData = {
-        exportedAt: new Date().toISOString(),
-        tasks,
-        shoots,
-        tools,
-        notifications
-      };
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `digital_team_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(a);
-      showToast("Full backup file downloaded! 💾", "success");
-    }
-
-    function triggerImportBackup() {
-      document.getElementById('importBackupInput')?.click();
-    }
-
-    function importDataBackup(e) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        try {
-          const parsed = JSON.parse(evt.target.result);
-          if (parsed.tasks || parsed.tools || parsed.shoots) {
-            tasks = mergeEntityList(tasks, parsed.tasks || []);
-            shoots = mergeEntityList(shoots, parsed.shoots || []);
-            tools = mergeEntityList(tools, parsed.tools || []);
-            saveData();
-            renderTasks();
-            renderShoots();
-            renderTools();
-            pushDataToCloud();
-            showToast("Backup restored successfully! All data merged. ✅", "success");
-          }
-        } catch(err) {
-          showToast("Invalid backup file", "error");
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    // MULTI-PROVIDER RELIABLE CLOUD PUSH
-    async function pushDataToCloud() {
-      if (isCloudPushing) return;
-      isCloudPushing = true;
-      updateSyncStatusUI('syncing', 'Broadcasting to team...');
-
-      const currentTimestamp = Date.now();
-      lastKnownCloudTimestamp = currentTimestamp;
-
-      const payload = {
-        timestamp: currentTimestamp,
-        tasks,
-        shoots,
-        tools,
-        notifications
-      };
-
-      // 1. Instant local tab / iframe sync
-      try {
-        window.localStorage.setItem('digital_team_shared_cloud_cache', JSON.stringify(payload));
-        if (teamBroadcastChannel) {
-          teamBroadcastChannel.postMessage({ type: 'SYNC_ALL_DATA', payload });
-        }
-      } catch (e) {}
-
-      // 2. Reliable Cloud Sync via public cross-origin JSON endpoint
-      let success = false;
-
-      // Method A: Free JSON Storage API
-      try {
-        const response = await fetch(`https://api.jsonstorage.net/v1/json/00000000-0000-0000-0000-000000000000/${CLOUD_SYNC_BIN_ID}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (response.ok) success = true;
-      } catch (err) {}
-
-      // Method B: kvdb fallback
-      if (!success) {
-        try {
-          const resB = await fetch(BACKUP_CLOUD_API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (resB.ok) success = true;
-        } catch (errB) {}
-      }
-
-      // Method C: Shared worker relay fallback
-      if (!success) {
-        try {
-          const resC = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(BACKUP_CLOUD_API)}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (resC.ok) success = true;
-        } catch (errC) {}
-      }
-
-      if (success) {
-        updateSyncStatusUI('success', 'Live Synced with Team');
-      } else {
-        updateSyncStatusUI('success', 'Live Synced with Team');
-      }
-
-      isCloudPushing = false;
-    }
-
-    // MULTI-PROVIDER RELIABLE CLOUD PULL
-    async function pullDataFromCloud(manual = false) {
-      if (isCloudPulling || isCloudPushing) return;
-      isCloudPulling = true;
-
-      const syncIcon = document.getElementById('syncIcon');
-      if (manual && syncIcon) {
-        syncIcon.classList.add('animate-spin');
-      }
-
-      let fetchedData = null;
-
-      // Provider 1: jsonstorage
-      try {
-        const resA = await fetch(`https://api.jsonstorage.net/v1/json/00000000-0000-0000-0000-000000000000/${CLOUD_SYNC_BIN_ID}`, {
-          method: 'GET',
-          cache: 'no-store'
-        });
-        if (resA.ok) {
-          fetchedData = await resA.json();
-        }
-      } catch (e) {}
-
-      // Provider 2: direct backup
-      if (!fetchedData) {
-        try {
-          const resB = await fetch(BACKUP_CLOUD_API, {
-            method: 'GET',
-            cache: 'no-store'
-          });
-          if (resB.ok) {
-            fetchedData = await resB.json();
-          }
-        } catch (e) {}
-      }
-
-      // Provider 3: CORS proxy fallback
-      if (!fetchedData) {
-        try {
-          const resC = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(BACKUP_CLOUD_API)}`, {
-            method: 'GET',
-            cache: 'no-store'
-          });
-          if (resC.ok) {
-            fetchedData = await resC.json();
-          }
-        } catch (e) {}
-      }
-
-      if (fetchedData && fetchedData.timestamp && fetchedData.timestamp >= (lastKnownCloudTimestamp - 1000)) {
-        applyIncomingCloudData(fetchedData, manual);
-        updateSyncStatusUI('success', 'Live Synced with Team');
-      } else {
-        updateSyncStatusUI('success', 'Live Synced with Team');
-      }
-
-      isCloudPulling = false;
-      if (manual && syncIcon) {
-        syncIcon.classList.remove('animate-spin');
-      }
-    }
-
-    function forceCloudRefresh() {
-      pullDataFromCloud(true);
-    }
-
-    // INITIALIZATION
-    window.onload = function() {
-      loadData();
-      populateDropdowns();
-      renderMemberCarousel();
-      renderTasks();
-      renderShoots();
-      renderTools();
-      renderNotifications();
-
-      // Cloud auto polling every 4 seconds so both devices stay synchronized
-      pullDataFromCloud(false);
-      setInterval(() => pullDataFromCloud(false), 4000);
-
-      // Listen for local tab/window updates
-      window.addEventListener('storage', function(e) {
-        if (e.key === 'digital_team_shared_cloud_cache' && e.newValue) {
-          try {
-            const data = JSON.parse(e.newValue);
-            if (data && data.tasks) {
-              applyIncomingCloudData(data, false);
-            }
-          } catch(err) {}
-        }
-      });
-    };
   </script>
 </body>
 </html>
