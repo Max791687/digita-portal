@@ -1518,7 +1518,8 @@ function clearTeamPin() {
     // --- SHARED TEAM UTILITIES ---
     function recordActivity(action, detail) {
       activity.unshift({id:'activity_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),action:String(action||'Workspace updated'),detail:String(detail||''),time:new Date().toISOString()});
-      // Retain a larger searchable history; old records beyond the previous 100-entry cap cannot be recovered.\n      if(activity.length>5000) activity=activity.slice(0,5000);
+      // Retain a larger searchable history; old records beyond the previous 100-entry cap cannot be recovered.
+      if(activity.length>5000) activity=activity.slice(0,5000);
       try{localStorage.setItem('dd_activity_v1',JSON.stringify(activity));}catch(e){}
     }
     function closeFeatureModal(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
