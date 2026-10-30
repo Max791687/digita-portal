@@ -1133,6 +1133,8 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
     // --- CRUD FUNCTIONS ---
     function openTaskModal() { if (!isAdmin()) return alert('Only Admin can create tasks.');
+      document.getElementById('taskAssigneeInput').disabled = false;
+      document.getElementById('taskAssignerInput').disabled = false;
       document.getElementById('taskForm').reset();
       document.getElementById('taskEditId').value = '';
       const today = new Date().toISOString().split('T')[0];
@@ -1155,7 +1157,9 @@ function logoutFromPortal() { showLogin("Logged out."); }
       document.getElementById('taskAssignedDateInput').value = t.assignedDate || '';
       document.getElementById('taskDueDateInput').value = t.dueDate || '';
       document.getElementById('taskAssigneeInput').value = t.assignedTo || 'Vijay';
+      document.getElementById('taskAssigneeInput').disabled = !isAdmin();
       document.getElementById('taskAssignerInput').value = t.assignedBy || 'Vanita (Script Writer)';
+      document.getElementById('taskAssignerInput').disabled = !isAdmin();
       document.getElementById('taskScriptTextInput').value = t.scriptText || '';
       document.getElementById('taskDocLinkInput').value = t.docLink || '';
 
@@ -1166,6 +1170,9 @@ function logoutFromPortal() { showLogin("Logged out."); }
     function handleTaskSubmit(e) {
       e.preventDefault();
       const editId = document.getElementById('taskEditId').value;
+      if (!isAdmin() && !editId) return alert('Only Admin can create tasks.');
+      const currentTask = editId ? tasks.find(x => x.id === editId) : null;
+      if (!isAdmin() && !canEditTask(currentTask)) return alert('You can edit only your own assigned task.');
       const title = document.getElementById('taskTitleInput').value.trim();
       const category = document.getElementById('taskCategoryInput').value;
       const assignedDate = document.getElementById('taskAssignedDateInput').value;
@@ -1180,7 +1187,10 @@ function logoutFromPortal() { showLogin("Logged out."); }
         if (idx !== -1) {
           tasks[idx] = {
             ...tasks[idx],
-            title, category, assignedDate, dueDate, assignedTo, assignedBy, scriptText, docLink
+            title, category, assignedDate, dueDate,
+            assignedTo: isAdmin() ? assignedTo : tasks[idx].assignedTo,
+            assignedBy: isAdmin() ? assignedBy : tasks[idx].assignedBy,
+            scriptText, docLink
           };
         }
       } else {
@@ -1424,6 +1434,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
     function handleToolSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return alert('Only Admin can add tools.');
       const name = document.getElementById('toolNameInput').value.trim();
       const category = document.getElementById('toolCategoryInput').value;
       const link = document.getElementById('toolLinkInput').value.trim();
