@@ -1147,7 +1147,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
     function editTask(id) {
       const t = tasks.find(x => x.id === id);
-      if (!t) return;
+      if (!canEditTask(t)) return alert('You can edit only your own assigned task.');
 
       document.getElementById('taskEditId').value = t.id;
       document.getElementById('taskTitleInput').value = t.title || '';
@@ -1216,7 +1216,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
     function updateTaskStatus(id, newStatus) {
       const t = tasks.find(x => x.id === id);
-      if (!t) return;
+      if (!canEditTask(t)) return alert('You can update only your own assigned task.');
       t.status = newStatus;
       recordActivity('Task status changed', (t.title || 'Task') + ' → ' + newStatus.replace(/_/g, ' '));
       if (newStatus === 'completed') {
@@ -1230,7 +1230,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
     function saveOutputLink(id, link) {
       const t = tasks.find(x => x.id === id);
-      if (t) {
+      if (t && canEditTask(t)) {
         t.outputLink = (link || '').trim();
         pushToCloud();
       }
@@ -1239,7 +1239,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
     // --- REVISIONS / CHANGES ---
     function openChangesModal(id) {
       const t = tasks.find(x => x.id === id);
-      if (!t) return;
+      if (!canEditTask(t)) return alert('You can update only your own assigned task.');
 
       document.getElementById('changeTaskId').value = t.id;
       document.getElementById('changeTaskTargetMember').innerText = `Editor: ${t.assignedTo} | Video: "${t.title}"`;
@@ -1254,6 +1254,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
     function submitChanges() {
       const id = document.getElementById('changeTaskId').value;
+      if (!canEditTask(tasks.find(x => x.id === id))) return alert('You can update only your own assigned task.');
       const notes = document.getElementById('changeNotesInput').value.trim();
       if (!notes) return alert('Please enter the changes required');
 
