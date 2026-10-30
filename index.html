@@ -1132,7 +1132,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
     }
 
     // --- CRUD FUNCTIONS ---
-    function openTaskModal() {
+    function openTaskModal() { if (!isAdmin()) return alert('Only Admin can create tasks.');
       document.getElementById('taskForm').reset();
       document.getElementById('taskEditId').value = '';
       const today = new Date().toISOString().split('T')[0];
@@ -1203,7 +1203,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
       pushToCloud();
     }
 
-    function deleteTask(id) {
+    function deleteTask(id) { if (!isAdmin()) return alert('Only Admin can delete tasks.');
       if (!confirm('Are you sure you want to delete this task?')) return;
       const removedTask = tasks.find(x => x.id === id);
       recordActivity('Task deleted', removedTask ? removedTask.title : id);
@@ -1301,7 +1301,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
     }
 
     // --- SHOOTS TRACKER ---
-    function openShootModal() {
+    function openShootModal() { if (!isAdmin()) return alert('Only Admin can schedule shoots.');
       document.getElementById('shootTopicInput').value = '';
       document.getElementById('shootDateTimeInput').value = '';
       document.getElementById('shootPresenterInput').value = '';
@@ -1395,7 +1395,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
       }
     }
 
-    function deleteShoot(id) {
+    function deleteShoot(id) { if (!isAdmin()) return alert('Only Admin can manage shoots.');
       if (!confirm('Delete this shoot?')) return;
       shoots = shoots.filter(x => x.id !== id);
       renderShoots();
@@ -1468,7 +1468,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
       `).join('');
     }
 
-    function deleteTool(id) {
+    function deleteTool(id) { if (!isAdmin()) return alert('Only Admin can delete tools.');
       const removedTool = tools.find(x => x.id === id);
       if (removedTool) recordActivity('Tool deleted', removedTool.name);
       tools = tools.filter(x => x.id !== id);
@@ -1487,7 +1487,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
       document.getElementById('announceModal').classList.add('hidden');
     }
 
-    function submitAnnouncement() {
+    function submitAnnouncement() { if (!isAdmin()) return alert('Only Admin can announce.');
       const txt = document.getElementById('announceTextInput').value.trim();
       if (!txt) return;
       triggerAlert(`📢 Announcement: ${txt}`);
