@@ -932,6 +932,7 @@ function clearTeamPin() {
     function setMemberFilter(id) {
       activeMemberFilter = id;
       renderMemberCarousel();
+      updateCounts();
       renderTasks();
     }
 
@@ -1582,11 +1583,15 @@ function clearTeamPin() {
     }
 
     function updateCounts() {
-      const allC = tasks.length;
-      const pendC = tasks.filter(t => t.status === 'pending').length;
-      const progressC = tasks.filter(t => t.status === 'in_progress').length;
-      const revC = tasks.filter(t => t.status === 'changes_required').length;
-      const doneC = tasks.filter(t => t.status === 'completed').length;
+      // Counts follow the selected member; All Team shows totals across everyone.
+      const visibleTasks = activeMemberFilter === 'all'
+        ? tasks
+        : tasks.filter(t => t.assignedTo === activeMemberFilter);
+      const allC = visibleTasks.length;
+      const pendC = visibleTasks.filter(t => t.status === 'pending').length;
+      const progressC = visibleTasks.filter(t => t.status === 'in_progress').length;
+      const revC = visibleTasks.filter(t => t.status === 'changes_required').length;
+      const doneC = visibleTasks.filter(t => t.status === 'completed').length;
 
       document.getElementById('countAll').innerText = allC;
       document.getElementById('countPending').innerText = pendC;
