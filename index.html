@@ -272,7 +272,7 @@
 
   <!-- TEAM CALENDAR MODAL -->
   <div id="calendarModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"><div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-3xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"><div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4"><h3 class="font-bold text-indigo-300"><i class="ph-bold ph-calendar-dots"></i> Team Calendar & Upcoming Deadlines</h3><button onclick="closeFeatureModal('calendarModal')" class="text-slate-400"><i class="ph-bold ph-x"></i></button></div><p class="text-xs text-slate-400 mb-3">Task due dates aur scheduled shoots ek jagah.</p><div id="calendarEvents" class="space-y-2"></div></div></div>
-  <div id="activityModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"><div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-2xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"><div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4"><h3 class="font-bold text-cyan-300"><i class="ph-bold ph-clock-counter-clockwise"></i> Shared Activity History</h3><button onclick="closeFeatureModal('activityModal')" class="text-slate-400"><i class="ph-bold ph-x"></i></button></div><p class="text-xs text-slate-400 mb-3">History feature enable hone ke baad ke changes record honge; purani activity ka record available nahi hoga.</p><div id="activityList" class="space-y-2"></div></div></div>
+  <div id="activityModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"><div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-3xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"><div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4"><h3 class="font-bold text-cyan-300"><i class="ph-bold ph-clock-counter-clockwise"></i> Shared Activity History</h3><button onclick="closeFeatureModal('activityModal')" class="text-slate-400"><i class="ph-bold ph-x"></i></button></div><p class="text-xs text-slate-400 mb-3">Date aur exact time range select karke purane recorded changes search karo. Available history ke records hi milenge.</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3"><label class="text-xs text-slate-400">From date & time<input id="historyFrom" type="datetime-local" onchange="renderActivityHistory()" class="mt-1 w-full bg-[#0c1220] border border-[#1f293d] rounded-lg p-2 text-xs text-white"></label><label class="text-xs text-slate-400">To date & time<input id="historyTo" type="datetime-local" onchange="renderActivityHistory()" class="mt-1 w-full bg-[#0c1220] border border-[#1f293d] rounded-lg p-2 text-xs text-white"></label><label class="text-xs text-slate-400">Activity type<select id="historyType" onchange="renderActivityHistory()" class="mt-1 w-full bg-[#0c1220] border border-[#1f293d] rounded-lg p-2 text-xs text-white"><option value="all">All activity</option><option value="task">Tasks & status</option><option value="revision">Revisions</option><option value="shoot">Shoots</option><option value="tool">Tools</option><option value="other">Other</option></select></label><label class="text-xs text-slate-400">Search keyword<input id="historySearch" type="search" oninput="renderActivityHistory()" placeholder="Task, member, title..." class="mt-1 w-full bg-[#0c1220] border border-[#1f293d] rounded-lg p-2 text-xs text-white"></label></div><div class="flex items-center justify-between gap-2 mb-3"><span id="historyResultCount" class="text-xs text-slate-400"></span><button onclick="resetActivityFilters()" class="text-xs text-cyan-300 font-bold">Clear filters</button></div><div id="activityList" class="space-y-2"></div></div></div>
   <div id="globalSearchModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"><div class="bg-[#111827] border border-[#1f293d] rounded-2xl w-full max-w-3xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"><div class="flex items-center justify-between border-b border-[#1f293d] pb-3 mb-4"><h3 class="font-bold text-sky-300"><i class="ph-bold ph-magnifying-glass"></i> Advanced Search</h3><button onclick="closeFeatureModal('globalSearchModal')" class="text-slate-400"><i class="ph-bold ph-x"></i></button></div><input id="globalSearchInput" type="search" oninput="renderGlobalSearch()" placeholder="Search tasks, shoots, tools, members..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-sm text-white mb-3"><div class="flex flex-wrap gap-2 mb-3 text-xs"><select id="globalSearchType" onchange="renderGlobalSearch()" class="bg-[#0c1220] border border-[#1f293d] rounded-lg px-3 py-2 text-white"><option value="all">All content</option><option value="tasks">Tasks</option><option value="shoots">Shoots</option><option value="tools">Tools</option></select><select id="globalSearchStatus" onchange="renderGlobalSearch()" class="bg-[#0c1220] border border-[#1f293d] rounded-lg px-3 py-2 text-white"><option value="all">Any task status</option><option value="pending">Pending</option><option value="in_progress">In progress</option><option value="changes_required">Changes required</option><option value="completed">Completed</option></select></div><div id="globalSearchResults" class="space-y-2"></div></div></div>
   <!-- TASK MODAL -->
   <div id="taskModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -1518,7 +1518,7 @@ function clearTeamPin() {
     // --- SHARED TEAM UTILITIES ---
     function recordActivity(action, detail) {
       activity.unshift({id:'activity_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),action:String(action||'Workspace updated'),detail:String(detail||''),time:new Date().toISOString()});
-      if(activity.length>100) activity=activity.slice(0,100);
+      // Retain a larger searchable history; old records beyond the previous 100-entry cap cannot be recovered.\n      if(activity.length>5000) activity=activity.slice(0,5000);
       try{localStorage.setItem('dd_activity_v1',JSON.stringify(activity));}catch(e){}
     }
     function closeFeatureModal(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
@@ -1531,9 +1531,41 @@ function clearTeamPin() {
       document.getElementById('calendarModal').classList.remove('hidden');
     }
     function openActivityHistory(){
-      const box=document.getElementById('activityList');
-      box.innerHTML=activity.length?activity.map(a=>'<div class="p-3 rounded-xl bg-[#0c1220] border border-[#1f293d]"><div class="flex items-start justify-between gap-3"><div class="text-sm font-bold text-white">'+escapeHtml(a.action||'Update')+'</div><div class="text-[10px] text-slate-500">'+(a.time&&!Number.isNaN(new Date(a.time).getTime())?new Date(a.time).toLocaleString():'')+'</div></div><div class="text-xs text-slate-400 mt-1 break-words">'+escapeHtml(a.detail||'')+'</div></div>').join(''):'<div class="text-center text-sm text-slate-400 py-8">No activity recorded yet. New task, shoot and tool changes will appear here.</div>';
+      ['historyFrom','historyTo','historySearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      const type=document.getElementById('historyType');if(type)type.value='all';
+      renderActivityHistory();
       document.getElementById('activityModal').classList.remove('hidden');
+    }
+    function resetActivityFilters(){
+      ['historyFrom','historyTo','historySearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      const type=document.getElementById('historyType');if(type)type.value='all';
+      renderActivityHistory();
+    }
+    function renderActivityHistory(){
+      const box=document.getElementById('activityList');if(!box)return;
+      const fromValue=document.getElementById('historyFrom')?.value||'';
+      const toValue=document.getElementById('historyTo')?.value||'';
+      const type=document.getElementById('historyType')?.value||'all';
+      const query=(document.getElementById('historySearch')?.value||'').trim().toLowerCase();
+      const from=fromValue?new Date(fromValue).getTime():-Infinity;
+      const to=toValue?new Date(toValue).getTime():Infinity;
+      const selectedMember=activeMemberFilter;
+      const filtered=activity.filter(a=>{
+        const dt=new Date(a.time||'');const ms=dt.getTime();
+        if(!Number.isFinite(ms)||ms<from||ms>to)return false;
+        const action=String(a.action||'').toLowerCase();
+        const detail=String(a.detail||'').toLowerCase();
+        if(type==='task'&&!action.includes('task'))return false;
+        if(type==='revision'&&!action.includes('revision'))return false;
+        if(type==='shoot'&&!action.includes('shoot'))return false;
+        if(type==='tool'&&!action.includes('tool'))return false;
+        if(type==='other'&&/(task|revision|shoot|tool)/.test(action))return false;
+        if(selectedMember!=='all'&&!(detail.includes(selectedMember.toLowerCase())||detail.includes(String(selectedMember).toLowerCase())))return false;
+        if(query&&!((action+' '+detail).includes(query)))return false;
+        return true;
+      });
+      const count=document.getElementById('historyResultCount');if(count)count.textContent=filtered.length+' record(s) found';
+      box.innerHTML=filtered.length?filtered.map(a=>{const dt=new Date(a.time);return '<div class="p-3 rounded-xl bg-[#0c1220] border border-[#1f293d]"><div class="flex items-start justify-between gap-3"><div class="text-sm font-bold text-white">'+escapeHtml(a.action||'Update')+'</div><div class="text-[10px] text-slate-400 text-right">'+escapeHtml(dt.toLocaleString())+'</div></div><div class="text-xs text-slate-400 mt-1 break-words">'+escapeHtml(a.detail||'')+'</div></div>';}).join(''):'<div class="text-center text-sm text-slate-400 py-8">No records found for these filters.</div>';
     }
     function openGlobalSearch(){document.getElementById('globalSearchModal').classList.remove('hidden');renderGlobalSearch();document.getElementById('globalSearchInput').focus();}
     function renderGlobalSearch(){
