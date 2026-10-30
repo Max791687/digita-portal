@@ -547,34 +547,60 @@
     // High Reliability Multi-Device Cloud Sync Node
     const CLOUD_API = "https://digital-team-sync.max791687.workers.dev/workspace";
 
-// Shared Team PIN is kept only for this browser tab session, never in public source.
-let teamPin = "";
-let pinPrompted = false;
+// Individual PIN session
+let authToken = "";
+let currentMember = "";
+let currentRole = "";
 try {
-  teamPin = sessionStorage.getItem("digital_team_pin") || "";
+  authToken = sessionStorage.getItem("digital_portal_token") || "";
+  currentMember = sessionStorage.getItem("digital_portal_member") || "";
+  currentRole = sessionStorage.getItem("digital_portal_role") || "";
 } catch (e) {}
-
-function getTeamPin(forcePrompt = false) {
-  if (teamPin) return teamPin;
-  if (pinPrompted && !forcePrompt) return "";
-  pinPrompted = true;
-
-  const entered = window.prompt("Enter the shared Digital Team PIN:");
-  if (!entered || !entered.trim()) return "";
-
-  teamPin = entered.trim();
-  try {
-    sessionStorage.setItem("digital_team_pin", teamPin);
-  } catch (e) {}
-  return teamPin;
+function isAdmin() { return currentMember === "Pavan" && currentRole === "admin"; }
+function canEditTask(t) { return !!t && (isAdmin() || (currentRole === "member" && t.assignedTo === currentMember)); }
+function applyRoleUI() {
+  document.querySelectorAll("[data-admin-only]").forEach(el => el.classList.toggle("hidden", !isAdmin()));
+  const label = document.getElementById("currentAccountLabel");
+  if (label) label.textContent = currentMember ? currentMember + (isAdmin() ? " · Admin" : " · Member") : "";
+  const overlay = document.getElementById("loginOverlay");
+  if (overlay) overlay.classList.toggle("hidden", !!authToken && !!currentMember);
 }
-
-function clearTeamPin() {
-  teamPin = "";
-  try {
-    sessionStorage.removeItem("digital_team_pin");
-  } catch (e) {}
+function clearAuth() {
+  authToken = ""; currentMember = ""; currentRole = "";
+  try { ["digital_portal_token","digital_portal_member","digital_portal_role"].forEach(k => sessionStorage.removeItem(k)); } catch (e) {}
 }
+function showLogin(message) {
+  clearAuth(); applyRoleUI();
+  const el = document.getElementById("loginMessage");
+  if (el) el.textContent = message || "";
+}
+async function loginToPortal() {
+  const member = document.getElementById("loginMember").value;
+  const pin = document.getElementById("loginPin").value.trim();
+  const msg = document.getElementById("loginMessage");
+  if (!pin) { if (msg) msg.textContent = "PIN enter karo."; return; }
+  const btn = document.getElementById("loginButton");
+  if (btn) { btn.disabled = true; btn.textContent = "Signing in..."; }
+  try {
+    const res = await fetch(CLOUD_API.replace("/workspace", "/auth/login"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ member, pin })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.token) throw new Error(data.error || "Name/PIN galat hai.");
+    authToken = data.token; currentMember = data.member; currentRole = data.role;
+    try {
+      sessionStorage.setItem("digital_portal_token", authToken);
+      sessionStorage.setItem("digital_portal_member", currentMember);
+      sessionStorage.setItem("digital_portal_role", currentRole);
+    } catch (e) {}
+    document.getElementById("loginPin").value = "";
+    applyRoleUI();
+    await pullFromCloud(false);
+  } catch (e) { if (msg) msg.textContent = e.message || "Login failed."; }
+  finally { if (btn) { btn.disabled = false; btn.textContent = "Login"; } }
+}
+function logoutFromPortal() { showLogin("Logged out."); }
 
     let tasks = [];
     let shoots = [];
