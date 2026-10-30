@@ -651,7 +651,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
       const pin = authToken;
       if (!pin) {
-        setSyncStatus("Team PIN needed — click Sync to retry", "slate");
+        setSyncStatus("Login required", "slate");
         isCloudUpdating = false;
         return;
       }
@@ -682,12 +682,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
           body: JSON.stringify(payload)
         });
 
-        if (res.status === 401) {
-          clearAuth();
-          pinPrompted = true;
-          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
-          return;
-        }
+        if (res.status === 401) { showLogin("Session expired. Please sign in again."); return; }
         if (!res.ok) {
           const detail = await res.json().catch(() => ({}));
           throw new Error(detail.error || 'Cloud save failed (' + res.status + ')');
@@ -708,7 +703,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
       const pin = authToken;
 
       if (!pin) {
-        if (!silent) setSyncStatus("Team PIN needed — click Sync", "slate");
+        if (!silent) setSyncStatus("Login required", "slate");
         return;
       }
 
@@ -723,12 +718,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
           cache: 'no-store'
         });
 
-        if (res.status === 401) {
-          clearAuth();
-          pinPrompted = true;
-          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
-          return;
-        }
+        if (res.status === 401) { showLogin("Session expired. Please sign in again."); return; }
         if (!res.ok) {
           const detail = await res.json().catch(() => ({}));
           throw new Error(detail.error || 'Cloud load failed (' + res.status + ')');
