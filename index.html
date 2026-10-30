@@ -232,7 +232,8 @@
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 custom-scrollbar text-xs font-semibold">
           <button onclick="setStatusFilter('all')" id="filterAll" class="px-3 py-1.5 rounded-xl bg-orange-500 text-white">All Tasks (<span id="countAll">0</span>)</button>
           <button onclick="setStatusFilter('pending')" id="filterPending" class="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33]">Pending (<span id="countPending">0</span>)</button>
-          <button onclick="setStatusFilter('changes_required')" id="filterRevisions" class="px-3 py-1.5 rounded-xl text-rose-400 hover:bg-[#161f33]">Revisions (<span id="countRevisions">0</span>)</button>
+          <button onclick="setStatusFilter('in_progress')" id="filterInProgress" class="px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33]">In Progress (<span id="countInProgress">0</span>)</button>
+          <button onclick="setStatusFilter('changes_required') id="filterRevisions" class="px-3 py-1.5 rounded-xl text-rose-400 hover:bg-[#161f33]">Revisions (<span id="countRevisions">0</span>)</button>
           <button onclick="setStatusFilter('completed')" id="filterDone" class="px-3 py-1.5 rounded-xl text-emerald-400 hover:bg-[#161f33]">Done (<span id="countDone">0</span>)</button>
         </div>
 
@@ -936,8 +937,9 @@ function clearTeamPin() {
 
     function setStatusFilter(s) {
       activeStatusFilter = s;
-      ['all', 'pending', 'changes_required', 'completed'].forEach(st => {
-        const b = document.getElementById(st === 'all' ? 'filterAll' : (st === 'changes_required' ? 'filterRevisions' : (st === 'completed' ? 'filterDone' : 'filterPending')));
+      ['all', 'pending', 'in_progress', 'changes_required', 'completed'].forEach(st => {
+        const ids = { all: 'filterAll', pending: 'filterPending', in_progress: 'filterInProgress', changes_required: 'filterRevisions', completed: 'filterDone' };
+        const b = document.getElementById(ids[st]);
         if (b) {
           if (st === s) b.className = "px-3 py-1.5 rounded-xl bg-orange-500 text-white font-semibold";
           else b.className = "px-3 py-1.5 rounded-xl text-slate-400 hover:bg-[#161f33] font-semibold";
@@ -1581,12 +1583,14 @@ function clearTeamPin() {
 
     function updateCounts() {
       const allC = tasks.length;
-      const pendC = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+      const pendC = tasks.filter(t => t.status === 'pending').length;
+      const progressC = tasks.filter(t => t.status === 'in_progress').length;
       const revC = tasks.filter(t => t.status === 'changes_required').length;
       const doneC = tasks.filter(t => t.status === 'completed').length;
 
       document.getElementById('countAll').innerText = allC;
       document.getElementById('countPending').innerText = pendC;
+      document.getElementById('countInProgress').innerText = progressC;
       document.getElementById('countRevisions').innerText = revC;
       document.getElementById('countDone').innerText = doneC;
 
