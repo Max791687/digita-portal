@@ -49,6 +49,18 @@
   </style>
 </head>
 <body class="min-h-screen custom-scrollbar pb-16">
+<div id="loginOverlay" class="fixed inset-0 z-[100] bg-[#070b14] flex items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-2xl border border-[#26334a] bg-[#111827] p-6 shadow-2xl">
+    <h2 class="text-xl font-bold text-white mb-1">Digital Department Login</h2>
+    <p class="text-xs text-slate-400 mb-4">Select your name and enter your personal PIN.</p>
+    <select id="loginMember" class="w-full bg-[#0c1220] border border-[#26334a] rounded-xl p-3 text-sm text-white mb-3">
+      <option value="Pavan">Pavan · Admin</option><option>Vijay</option><option>Tushar</option><option>Mirtunjay</option><option>Shweta</option><option>Vanita</option><option>Manoj</option><option>Ashish</option>
+    </select>
+    <input id="loginPin" type="password" inputmode="numeric" placeholder="Personal PIN" class="w-full bg-[#0c1220] border border-[#26334a] rounded-xl p-3 text-sm text-white mb-3">
+    <p id="loginMessage" class="text-xs text-rose-300 min-h-5 mb-2"></p>
+    <button id="loginButton" onclick="loginToPortal()" class="w-full rounded-xl bg-orange-500 p-3 text-sm font-bold text-white">Login</button>
+  </div>
+</div>
 
   <!-- TOP APP BANNER (BROADCAST) -->
   <div id="liveAlertBanner" class="hidden bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 text-white px-4 py-2.5 shadow-lg flex items-center justify-between text-xs sm:text-sm font-medium sticky top-0 z-50">
@@ -80,7 +92,7 @@
           <div class="flex items-center gap-2 text-xs text-slate-400">
             <span>Video Editors • Writers • Designers</span>
             <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-            <span id="cloudStatusBadge" class="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
+            <span id="currentAccountLabel" class="text-[10px] text-amber-300 font-bold"></span><span id="cloudStatusBadge" class="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
               <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-green"></span>
               Live Synced with Team
             </span>
@@ -101,7 +113,7 @@
           <span id="toolCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-sky-500 text-white ml-0.5">0</span>
         </button>
 
-        <button onclick="openAnnounceModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-amber-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+        <button onclick="openAnnounceModal()" data-admin-only class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-amber-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
           <i class="ph-bold ph-megaphone text-amber-400"></i>
           <span>Announce</span>
         </button>
@@ -124,7 +136,7 @@
           </div>
         </div>
 
-        <button onclick="openTaskModal()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/20 flex items-center gap-1.5 transition active:scale-95">
+        <button onclick="openTaskModal()" data-admin-only class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/20 flex items-center gap-1.5 transition active:scale-95">
           <i class="ph-bold ph-plus-circle text-base"></i>
           <span>Assign Task</span>
         </button>
@@ -149,7 +161,7 @@
         </button>
       </div>
 
-      <div id="shootsTopAction" class="hidden">
+      <div id="shootsTopAction" data-admin-only class="hidden">
         <button onclick="openShootModal()" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-purple-600/20">
           <i class="ph-bold ph-calendar-plus"></i> Schedule New Shoot
         </button>
@@ -637,7 +649,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
       isCloudUpdating = true;
       setSyncStatus("Saving team updates...", "amber");
 
-      const pin = getTeamPin();
+      const pin = authToken;
       if (!pin) {
         setSyncStatus("Team PIN needed — click Sync to retry", "slate");
         isCloudUpdating = false;
@@ -665,13 +677,13 @@ function logoutFromPortal() { showLogin("Logged out."); }
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + pin
+            'Authorization': 'Bearer ' + authToken
           },
           body: JSON.stringify(payload)
         });
 
         if (res.status === 401) {
-          clearTeamPin();
+          clearAuth();
           pinPrompted = true;
           setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
           return;
@@ -693,7 +705,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
     // --- PULL DATA FROM CLOUDFLARE WORKER ---
     async function pullFromCloud(silent = true, askForPin = false) {
       if (isCloudUpdating) return;
-      const pin = getTeamPin(askForPin);
+      const pin = authToken;
 
       if (!pin) {
         if (!silent) setSyncStatus("Team PIN needed — click Sync", "slate");
@@ -706,13 +718,13 @@ function logoutFromPortal() { showLogin("Logged out."); }
         const res = await fetch(CLOUD_API + '?t=' + Date.now(), {
           method: 'GET',
           headers: {
-            'Authorization': 'Bearer ' + pin
+            'Authorization': 'Bearer ' + authToken
           },
           cache: 'no-store'
         });
 
         if (res.status === 401) {
-          clearTeamPin();
+          clearAuth();
           pinPrompted = true;
           setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
           return;
@@ -775,7 +787,7 @@ function logoutFromPortal() { showLogin("Logged out."); }
     function forceCloudSync() {
       const icon = document.getElementById('syncIcon');
       if (icon) icon.classList.add('animate-spin');
-      pullFromCloud(false, true).then(() => {
+      pullFromCloud(false).then(() => {
         setTimeout(() => {
           if (icon) icon.classList.remove('animate-spin');
         }, 500);
@@ -806,10 +818,10 @@ function logoutFromPortal() { showLogin("Logged out."); }
       renderAll();
 
       // Connect to the shared database and ask for the Team PIN once.
-      pullFromCloud(false, true);
+      pullFromCloud(false);
 
       // Auto sync every 3 seconds for zero delay
-      setInterval(() => pullFromCloud(true), 3000);
+      setInterval(() => { if (authToken) pullFromCloud(true); }, 3000);
     };
 
     function getDashboardLocalDate(date = new Date()) {
