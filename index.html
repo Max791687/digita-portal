@@ -816,9 +816,10 @@ function logoutFromPortal() { showLogin("Logged out."); }
 
       renderMemberCarousel();
       renderAll();
+      applyRoleUI();
 
-      // Connect to the shared database and ask for the Team PIN once.
-      pullFromCloud(false);
+      // Restore the saved login session, or show the login screen.
+      if (authToken) pullFromCloud(false); else showLogin('Please sign in.');
 
       // Auto sync every 3 seconds for zero delay
       setInterval(() => { if (authToken) pullFromCloud(true); }, 3000);
