@@ -586,10 +586,13 @@ function clearTeamPin() {
     let searchQuery = '';
     let currentViewingScript = '';
     let isCloudUpdating = false;
+    let isCloudPulling = false;
     let cloudRevision = null;
     let cloudReady = false;
     let cloudConflict = false;
     let cloudSavePending = false;
+    let cloudLocalEditPendingInitial = false;
+    let cloudLocalEditDuringPull = false;
     // First successful cloud pull establishes a baseline; only later additions trigger popups.
     let cloudToolsInitialized = false;
 
@@ -616,8 +619,14 @@ function clearTeamPin() {
         setSyncStatus("Sync conflict — export a backup before reloading", "slate");
         return;
       }
+      if (isCloudPulling) {
+        cloudSavePending = true;
+        cloudLocalEditDuringPull = true;
+        return;
+      }
       if (!cloudReady) {
         cloudSavePending = true;
+        cloudLocalEditPendingInitial = true;
         setSyncStatus("Waiting for secure cloud connection...", "amber");
         return;
       }
@@ -700,7 +709,7 @@ function clearTeamPin() {
 
     // --- PULL DATA FROM CLOUDFLARE WORKER ---
     async function pullFromCloud(silent = true, askForPin = false) {
-      if (isCloudUpdating || cloudConflict) return;
+      if (isCloudUpdating || isCloudPulling || cloudConflict) return;
       const pin = getTeamPin(askForPin);
 
       if (!pin) {
@@ -710,6 +719,7 @@ function clearTeamPin() {
 
       if (!silent) setSyncStatus("Checking team updates...", "amber");
 
+      isCloudPulling = true;
       try {
         const res = await fetch(CLOUD_API + '?t=' + Date.now(), {
           method: 'GET',
@@ -744,6 +754,12 @@ function clearTeamPin() {
         }
         cloudRevision = data._revision;
         cloudReady = true;
+        if (cloudLocalEditPendingInitial || cloudLocalEditDuringPull) {
+          cloudConflict = true;
+          cloudSavePending = false;
+          setSyncStatus("Local edits detected during sync — download a backup", "slate");
+          return;
+        }
         if (data && typeof data === 'object') {
           const incomingTools = Array.isArray(data.tools) ? data.tools : [];
           const previousToolIds = new Set(tools.map(tool => String(tool.id)));
@@ -779,6 +795,8 @@ function clearTeamPin() {
       } catch (e) {
         console.error("Cloud load failed:", e);
         if (!silent) setSyncStatus("Sync failed — check connection", "slate");
+      } finally {
+        isCloudPulling = false;
       }
     }
 
