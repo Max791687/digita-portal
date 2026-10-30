@@ -586,6 +586,10 @@ function clearTeamPin() {
     let searchQuery = '';
     let currentViewingScript = '';
     let isCloudUpdating = false;
+    let cloudRevision = null;
+    let cloudReady = false;
+    let cloudConflict = false;
+    let cloudSavePending = false;
     // First successful cloud pull establishes a baseline; only later additions trigger popups.
     let cloudToolsInitialized = false;
 
@@ -608,6 +612,20 @@ function clearTeamPin() {
 
     // --- PUSH DATA TO CLOUDFLARE WORKER ---
     async function pushToCloud() {
+      if (cloudConflict) {
+        setSyncStatus("Sync conflict — export a backup before reloading", "slate");
+        return;
+      }
+      if (!cloudReady) {
+        cloudSavePending = true;
+        setSyncStatus("Waiting for secure cloud connection...", "amber");
+        return;
+      }
+      if (isCloudUpdating) {
+        cloudSavePending = true;
+        return;
+      }
+
       isCloudUpdating = true;
       setSyncStatus("Saving team updates...", "amber");
 
@@ -624,6 +642,7 @@ function clearTeamPin() {
         tools,
         notifications,
         activity,
+        expectedRevision: cloudRevision,
         updatedAt: Date.now()
       };
 
@@ -650,23 +669,38 @@ function clearTeamPin() {
           setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
           return;
         }
+        if (res.status === 409) {
+          cloudConflict = true;
+          cloudSavePending = false;
+          setSyncStatus("Sync conflict — local changes kept; download a backup", "slate");
+          return;
+        }
         if (!res.ok) {
           const detail = await res.json().catch(() => ({}));
           throw new Error(detail.error || 'Cloud save failed (' + res.status + ')');
         }
 
+        const saved = await res.json();
+        if (!saved || typeof saved.revision !== 'string' || !saved.revision) {
+          throw new Error("Cloud save response did not include a revision");
+        }
+        cloudRevision = saved.revision;
         setSyncStatus("Live Synced with Team", "emerald");
       } catch (e) {
         console.error("Cloud save failed:", e);
         setSyncStatus("Cloud save failed — local backup kept", "slate");
       } finally {
         isCloudUpdating = false;
+        if (cloudSavePending && cloudReady && !cloudConflict) {
+          cloudSavePending = false;
+          void pushToCloud();
+        }
       }
     }
 
     // --- PULL DATA FROM CLOUDFLARE WORKER ---
     async function pullFromCloud(silent = true, askForPin = false) {
-      if (isCloudUpdating) return;
+      if (isCloudUpdating || cloudConflict) return;
       const pin = getTeamPin(askForPin);
 
       if (!pin) {
@@ -697,6 +731,19 @@ function clearTeamPin() {
         }
 
         const data = await res.json();
+        if (
+          !data || typeof data !== 'object' ||
+          !Array.isArray(data.tasks) ||
+          !Array.isArray(data.shoots) ||
+          !Array.isArray(data.tools) ||
+          !Array.isArray(data.notifications) ||
+          !Array.isArray(data.activity) ||
+          !(data._revision === null || (typeof data._revision === 'string' && data._revision.length > 0))
+        ) {
+          throw new Error("Cloud workspace response is incomplete or invalid");
+        }
+        cloudRevision = data._revision;
+        cloudReady = true;
         if (data && typeof data === 'object') {
           const incomingTools = Array.isArray(data.tools) ? data.tools : [];
           const previousToolIds = new Set(tools.map(tool => String(tool.id)));
@@ -714,7 +761,7 @@ function clearTeamPin() {
           tasks = Array.isArray(data.tasks) ? data.tasks : [];
           shoots = Array.isArray(data.shoots) ? data.shoots : [];
           notifications = Array.isArray(data.notifications) ? data.notifications : [];
-          activity = Array.isArray(data.activity) ? data.activity : activity;
+          activity = data.activity;
 
           localStorage.setItem('dd_tasks_v2', JSON.stringify(tasks));
           localStorage.setItem('dd_shoots_v2', JSON.stringify(shoots));
@@ -724,6 +771,10 @@ function clearTeamPin() {
 
           renderAll();
           setSyncStatus("Live Synced with Team", "emerald");
+          if (cloudSavePending && !cloudConflict) {
+            cloudSavePending = false;
+            void pushToCloud();
+          }
         }
       } catch (e) {
         console.error("Cloud load failed:", e);
