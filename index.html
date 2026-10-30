@@ -189,9 +189,15 @@
       <div class="mt-4 rounded-xl border border-[#1f293d] bg-[#0c1220]/80 p-3 sm:p-4">
         <div class="flex items-center justify-between gap-2 mb-3">
           <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="ph-bold ph-calendar-check text-orange-400"></i> Upcoming deadlines & shoots</h3>
-          <span class="text-[10px] text-slate-500">Next 5 items</span>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-[10px] text-slate-500">Next 5 items</span>
+            <button id="dashboardUpcomingToggle" type="button" onclick="toggleUpcomingPanel()" class="text-[10px] font-bold rounded-lg border border-[#334155] px-2.5 py-1.5 text-slate-300 hover:bg-[#1f293d]">Collapse ▲</button>
+          </div>
         </div>
-        <div id="dashboardUpcomingList" class="space-y-2"><p class="text-xs text-slate-500">Loading your schedule…</p></div>
+        <div id="dashboardUpcomingContent">
+          <div class="mb-2 text-[10px] text-slate-500">Scroll inside this panel to view more deadlines and shoots.</div>
+          <div id="dashboardUpcomingList" class="space-y-2 max-h-64 overflow-y-auto overscroll-contain pr-1 custom-scrollbar"><p class="text-xs text-slate-500">Loading your schedule…</p></div>
+        </div>
       </div>
       <div class="mt-4 rounded-xl border border-rose-500/25 bg-[#0c1220]/80 p-3 sm:p-4">
         <div class="flex items-center justify-between gap-2 mb-3">
@@ -787,6 +793,14 @@ function clearTeamPin() {
     }
 
     // Dashboard calculations are derived from existing tasks/shoots; no stored data is rewritten.
+    function toggleUpcomingPanel() {
+      const content = document.getElementById('dashboardUpcomingContent');
+      const button = document.getElementById('dashboardUpcomingToggle');
+      if (!content || !button) return;
+      const isCollapsed = content.classList.toggle('hidden');
+      button.textContent = isCollapsed ? 'Show items ▼' : 'Collapse ▲';
+    }
+
     function toggleRevisionInbox() {
       const content = document.getElementById('dashboardRevisionContent');
       const button = document.getElementById('dashboardRevisionToggle');
