@@ -77,6 +77,35 @@
     </div>
   </div>
 
+  <!-- TEAM MEMBERS MANAGEMENT -->
+  <div id="membersModal" class="hidden fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="max-w-2xl mx-auto my-6 rounded-3xl border border-[#29364d] bg-[#111827] shadow-2xl">
+      <div class="flex items-center justify-between gap-3 p-5 border-b border-[#1f293d]">
+        <div><h2 class="text-lg font-black text-white">Team Members</h2><p class="text-xs text-slate-400 mt-1">Manage individual team login accounts</p></div>
+        <button onclick="closeMembersModal()" class="w-9 h-9 rounded-xl bg-[#1f293d] text-slate-300 hover:text-white" aria-label="Close">✕</button>
+      </div>
+      <div class="p-5 space-y-5">
+        <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-white">Account list</h3><button onclick="loadTeamAccounts()" class="px-3 py-2 rounded-lg bg-[#1f293d] text-xs text-slate-200">↻ Refresh</button></div>
+        <div id="teamAccountsList" class="space-y-2"><p class="text-xs text-slate-400">Loading accounts…</p></div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <form id="createMemberForm" onsubmit="createTeamAccount(event)" class="rounded-2xl border border-[#1f293d] bg-[#0c1220] p-4 space-y-3">
+            <h3 class="font-bold text-sm text-emerald-300">Create account</h3>
+            <label class="block text-xs text-slate-300">Team member<select id="createMemberId" required class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"><option value="">Select member</option><option value="vijay">Vijay</option><option value="tushar">Tushar</option><option value="mirtunjay">Mirtunjay</option><option value="shweta">Shweta</option><option value="vanita">Vanita</option><option value="manoj">Manoj</option><option value="ashish">Ashish</option></select></label>
+            <label class="block text-xs text-slate-300">Personal PIN<input id="createMemberPin" type="password" minlength="6" maxlength="128" autocomplete="new-password" required placeholder="Minimum 6 characters" class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"></label>
+            <button type="submit" class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 p-2.5 text-xs font-bold text-white">Create account</button>
+          </form>
+          <form id="resetMemberForm" onsubmit="resetTeamMemberPin(event)" class="rounded-2xl border border-[#1f293d] bg-[#0c1220] p-4 space-y-3">
+            <h3 class="font-bold text-sm text-amber-300">Reset member PIN</h3>
+            <label class="block text-xs text-slate-300">Existing account<select id="resetMemberId" required class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"><option value="">Select account</option></select></label>
+            <label class="block text-xs text-slate-300">New personal PIN<input id="resetMemberPin" type="password" minlength="6" maxlength="128" autocomplete="new-password" required placeholder="Minimum 6 characters" class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"></label>
+            <button type="submit" class="w-full rounded-lg bg-amber-600 hover:bg-amber-700 p-2.5 text-xs font-bold text-white">Reset PIN</button>
+          </form>
+        </div>
+        <p id="membersMessage" class="text-xs text-slate-400 min-h-4" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
+
   <!-- TOP APP BANNER (BROADCAST) -->
   <div id="liveAlertBanner" class="hidden bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 text-white px-4 py-2.5 shadow-lg flex items-center justify-between text-xs sm:text-sm font-medium sticky top-0 z-50">
     <div class="flex items-center gap-2 overflow-hidden">
@@ -128,7 +157,7 @@
           <span id="toolCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-sky-500 text-white ml-0.5">0</span>
         </button>
 
-        <button id="manageMembersButton" onclick="manageTeamAccounts()" class="hidden px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold">Members</button>
+        <button id="manageMembersButton" onclick="openMembersModal()" class="hidden px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold">Members</button>
         <button onclick="openAnnounceModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-amber-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
           <i class="ph-bold ph-megaphone text-amber-400"></i>
           <span>Announce</span>
@@ -1710,24 +1739,77 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       pushToCloud();
     }
 
-    async function manageTeamAccounts() {
-      if (!isAdmin()) return;
-      const action = prompt("Team accounts: type CREATE, RESET or LIST");
-      if (!action) return;
-      if (action.toUpperCase() === "LIST") {
-        const res = await fetch(CLOUD_API.replace("/workspace", "/auth/users"), { headers: authHeaders() });
-        const data = await res.json().catch(() => ({}));
-        alert((data.users || []).map(u => u.display_name + " (" + u.member_id + ") — " + (u.active ? "Active" : "Inactive")).join("\n") || data.error || "No accounts");
-        return;
+    const TEAM_MEMBER_NAMES = {vijay:"Vijay",tushar:"Tushar",mirtunjay:"Mirtunjay",shweta:"Shweta",vanita:"Vanita",manoj:"Manoj",ashish:"Ashish"};
+    function setMembersMessage(message, good=false) {
+      const el=document.getElementById("membersMessage");
+      if(el){el.textContent=message||"";el.className="text-xs min-h-4 "+(good?"text-emerald-300":"text-slate-400");}
+    }
+    function closeMembersModal() {
+      document.getElementById("membersModal").classList.add("hidden");
+      document.getElementById("createMemberPin").value="";
+      document.getElementById("resetMemberPin").value="";
+      setMembersMessage("");
+    }
+    async function openMembersModal() {
+      if(!isAdmin()) return;
+      document.getElementById("membersModal").classList.remove("hidden");
+      await loadTeamAccounts();
+    }
+    async function loadTeamAccounts() {
+      if(!isAdmin()) return;
+      const list=document.getElementById("teamAccountsList");
+      const resetSelect=document.getElementById("resetMemberId");
+      list.innerHTML='<p class="text-xs text-slate-400">Loading accounts…</p>';
+      try {
+        const res=await fetch(CLOUD_API.replace("/workspace","/auth/users"),{headers:authHeaders(),cache:"no-store"});
+        const data=await res.json().catch(()=>({}));
+        if(res.status===401){logoutUser();return;}
+        if(!res.ok) throw new Error(data.error||"Could not load accounts.");
+        const users=Array.isArray(data.users)?data.users:[];
+        list.innerHTML=users.length?users.map(u=>'<div class="flex items-center justify-between gap-3 rounded-xl border border-[#1f293d] bg-[#0c1220] px-3 py-2.5"><div><p class="text-sm font-semibold text-white">'+escapeHtml(u.display_name)+'</p><p class="text-[11px] text-slate-500">'+escapeHtml(u.member_id)+' · '+escapeHtml(u.role)+'</p></div><span class="rounded-full px-2.5 py-1 text-[10px] font-bold '+(Number(u.active)===1?'bg-emerald-500/10 text-emerald-300':'bg-slate-700 text-slate-300')+'">'+(Number(u.active)===1?'Active':'Inactive')+'</span></div>').join(""):'<p class="text-xs text-slate-400">No accounts found.</p>';
+        const activeUsers=users.filter(u=>Number(u.active)===1&&u.member_id!=="pavan");
+        resetSelect.innerHTML='<option value="">Select account</option>'+activeUsers.map(u=>'<option value="'+escapeHtml(u.member_id)+'">'+escapeHtml(u.display_name)+'</option>').join("");
+        const existing=new Set(users.map(u=>u.member_id));
+        const createSelect=document.getElementById("createMemberId");
+        Array.from(createSelect.options).forEach(o=>{if(o.value)o.disabled=existing.has(o.value);});
+        setMembersMessage("Account list updated.",true);
+      } catch(err) {
+        list.innerHTML='<p class="text-xs text-rose-300">'+escapeHtml(err.message||"Could not load accounts.")+'</p>';
+        setMembersMessage(err.message||"Could not load accounts.");
       }
-      const memberId = prompt("Enter member ID: " + Object.keys({vijay:1,tushar:1,mirtunjay:1,shweta:1,vanita:1,manoj:1,ashish:1}).join(", "));
-      if (!memberId) return;
-      const pin = prompt("Enter a new personal PIN (minimum 6 characters):");
-      if (!pin) return;
-      const endpoint = action.toUpperCase() === "RESET" ? "/auth/users/reset-pin" : "/auth/users";
-      const res = await fetch(CLOUD_API.replace("/workspace", endpoint), { method: "POST", headers: authHeaders(true), body: JSON.stringify({ memberId: memberId.toLowerCase(), pin }) });
-      const data = await res.json().catch(() => ({}));
-      alert(res.ok ? (action.toUpperCase() === "RESET" ? "PIN reset successfully." : "Member account created.") : (data.error || "Request failed."));
+    }
+    async function createTeamAccount(event) {
+      event.preventDefault();
+      if(!isAdmin()) return;
+      const memberId=document.getElementById("createMemberId").value;
+      const pin=document.getElementById("createMemberPin").value;
+      if(!memberId||pin.length<6){setMembersMessage("Select a member and enter a PIN with at least 6 characters.");return;}
+      try {
+        const res=await fetch(CLOUD_API.replace("/workspace","/auth/users"),{method:"POST",headers:authHeaders(true),body:JSON.stringify({memberId,pin})});
+        const data=await res.json().catch(()=>({}));
+        if(res.status===401){logoutUser();return;}
+        if(!res.ok) throw new Error(data.error||"Account creation failed.");
+        document.getElementById("createMemberForm").reset();
+        setMembersMessage("Account created for "+(TEAM_MEMBER_NAMES[memberId]||memberId)+".",true);
+        await loadTeamAccounts();
+      } catch(err){setMembersMessage(err.message||"Account creation failed.");}
+    }
+    async function resetTeamMemberPin(event) {
+      event.preventDefault();
+      if(!isAdmin()) return;
+      const memberId=document.getElementById("resetMemberId").value;
+      const pin=document.getElementById("resetMemberPin").value;
+      if(!memberId||pin.length<6){setMembersMessage("Select an existing account and enter a PIN with at least 6 characters.");return;}
+      if(!confirm("Reset the personal PIN for "+(TEAM_MEMBER_NAMES[memberId]||memberId)+"?")) return;
+      try {
+        const res=await fetch(CLOUD_API.replace("/workspace","/auth/users/reset-pin"),{method:"POST",headers:authHeaders(true),body:JSON.stringify({memberId,pin})});
+        const data=await res.json().catch(()=>({}));
+        if(res.status===401){logoutUser();return;}
+        if(!res.ok) throw new Error(data.error||"PIN reset failed.");
+        document.getElementById("resetMemberForm").reset();
+        setMembersMessage("PIN reset successfully. Share the new PIN securely with that member.",true);
+        await loadTeamAccounts();
+      } catch(err){setMembersMessage(err.message||"PIN reset failed.");}
     }
 
     // --- SHARED TEAM UTILITIES ---
