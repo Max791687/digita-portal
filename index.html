@@ -877,12 +877,19 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         }
         cloudRevision = data._revision;
         cloudReady = true;
-        if (cloudLocalEditPendingInitial || cloudLocalEditDuringPull) {
+        const hadLocalEditsDuringPull = cloudLocalEditPendingInitial || cloudLocalEditDuringPull;
+        let memberLocalTasks = null;
+        if (hadLocalEditsDuringPull && !isAdmin()) {
+          // Keep member task creations and permitted progress edits made while this GET was in flight.
+          memberLocalTasks = Array.isArray(tasks) ? tasks.slice() : [];
+        } else if (hadLocalEditsDuringPull) {
           cloudConflict = true;
           cloudSavePending = false;
           setSyncStatus("Local edits detected during sync — download a backup", "slate");
           return;
         }
+        cloudLocalEditPendingInitial = false;
+        cloudLocalEditDuringPull = false;
         if (data && typeof data === 'object') {
           const incomingTools = Array.isArray(data.tools) ? data.tools : [];
           const previousToolIds = new Set(tools.map(tool => String(tool.id)));
@@ -898,6 +905,25 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           }
           cloudToolsInitialized = true;
           tasks = Array.isArray(data.tasks) ? data.tasks : [];
+          if (memberLocalTasks) {
+            const cloudTaskIds = new Set(tasks.map(task => String(task && task.id)));
+            const localById = new Map(memberLocalTasks.filter(task => task && task.id).map(task => [String(task.id), task]));
+            tasks = tasks.map(cloudTask => {
+              const localTask = localById.get(String(cloudTask && cloudTask.id));
+              if (!localTask || !isOwnTask(localTask)) return cloudTask;
+              const merged = { ...cloudTask, status: localTask.status };
+              if (Object.prototype.hasOwnProperty.call(localTask, 'progress')) merged.progress = localTask.progress;
+              if (Object.prototype.hasOwnProperty.call(localTask, 'outputLink')) merged.outputLink = localTask.outputLink;
+              return merged;
+            });
+            memberLocalTasks.forEach(localTask => {
+              if (!localTask || !localTask.id || cloudTaskIds.has(String(localTask.id))) return;
+              if (String(localTask.assignedBy || '').trim().toLowerCase() === String(currentUser.displayName || '').trim().toLowerCase()) {
+                tasks.unshift(localTask);
+              }
+            });
+            cloudSavePending = true;
+          }
           shoots = Array.isArray(data.shoots) ? data.shoots : [];
           notifications = Array.isArray(data.notifications) ? data.notifications : [];
           activity = data.activity;
@@ -920,6 +946,10 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         if (!silent) setSyncStatus("Sync failed — check connection", "slate");
       } finally {
         isCloudPulling = false;
+        if (cloudSavePending && cloudReady && !cloudConflict) {
+          cloudSavePending = false;
+          void pushToCloud();
+        }
       }
     }
 
