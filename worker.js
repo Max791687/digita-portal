@@ -110,7 +110,7 @@ function stripEditableFields(task) {
   return copy;
 }
 function isMemberTaskUpdateAllowed(previous, incoming, user) {
-  if (!Array.isArray(previous) || !Array.isArray(incoming) || previous.length !== incoming.length) return false;
+  if (!Array.isArray(previous) || !Array.isArray(incoming) || incoming.length < previous.length) return false;
   const previousById = new Map(previous.map(t => [String(t && t.id), t]));
   const seen = new Set();
   for (const next of incoming) {
@@ -119,7 +119,20 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
     if (seen.has(id)) return false;
     seen.add(id);
     const old = previousById.get(id);
-    if (!old) return false;
+    if (!old) {
+      // Members may create new tasks, but cannot set their initial progress/status/output.
+      const validAssignee = Object.values(ALLOWED_MEMBERS).some(name => normalizeName(name) === normalizeName(next.assignedTo));
+      if (!/^task_[0-9]+$/.test(id) ||
+        typeof next.title !== "string" || !next.title.trim() || next.title.length > 240 ||
+        typeof next.category !== "string" || next.category.length > 80 ||
+        typeof next.assignedDate !== "string" || typeof next.dueDate !== "string" ||
+        !validAssignee || normalizeName(next.assignedBy) !== normalizeName(user.displayName) ||
+        typeof next.scriptText !== "string" || next.scriptText.length > 20000 ||
+        typeof next.docLink !== "string" || next.docLink.length > 2048 ||
+        next.status !== "pending" || next.outputLink !== "" ||
+        !Number.isFinite(next.createdAt) || Object.prototype.hasOwnProperty.call(next, "progress")) return false;
+      continue;
+    }
     if (normalizeName(old.assignedTo) !== normalizeName(user.displayName)) {
       if (JSON.stringify(old) !== JSON.stringify(next)) return false;
       continue;
@@ -129,7 +142,8 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
     if (next.progress !== undefined && (!Number.isInteger(next.progress) || next.progress < 0 || next.progress > 100)) return false;
     if (next.outputLink !== undefined && (typeof next.outputLink !== "string" || next.outputLink.length > 2048)) return false;
   }
-  return seen.size === previousById.size;
+  for (const old of previous) if (!seen.has(String(old && old.id))) return false;
+  return true;
 }
 function emptyWorkspace() {
   return { tasks: [], shoots: [], tools: [], notifications: [], activity: [], updatedAt: null, _revision: null };
