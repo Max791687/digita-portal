@@ -394,7 +394,7 @@
               </optgroup>
             </select>
           </div>
-          <div>
+          <div id="taskAssignerField">
             <label class="block font-semibold text-slate-300 mb-1">Assigned By (Who gave the task?) *</label>
             <select id="taskAssignerInput" required class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
               <option value="Vanita (Script Writer)">Vanita (Script Writer)</option>
@@ -700,7 +700,7 @@ function applyRoleUI() {
   if (membersButton) membersButton.classList.toggle("hidden", !isAdmin());
   if (!isAdmin()) {
     activeMemberFilter = "all";
-    document.querySelectorAll('button[onclick*="openAnnounceModal"],button[onclick*="openTaskModal"],button[onclick*="openShootModal"],button[onclick*="exportPortalBackup"],button[onclick*="backupImportInput"],button[onclick*="openCalendar"],button[onclick*="openActivityHistory"],button[onclick*="openGlobalSearch"]').forEach(el => el.classList.add("hidden"));
+    document.querySelectorAll('button[onclick*="openAnnounceModal"],button[onclick*="openShootModal"],button[onclick*="exportPortalBackup"],button[onclick*="backupImportInput"],button[onclick*="openCalendar"],button[onclick*="openActivityHistory"],button[onclick*="openGlobalSearch"]').forEach(el => el.classList.add("hidden"));
   }
   renderMemberCarousel();
   renderAll();
@@ -1297,9 +1297,10 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
 
     // --- CRUD FUNCTIONS ---
     function openTaskModal() {
-      if (!isAdmin()) return;
       document.getElementById('taskForm').reset();
       document.getElementById('taskEditId').value = '';
+      const assignerField = document.getElementById('taskAssignerField');
+      if (assignerField) assignerField.classList.toggle('hidden', !isAdmin());
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('taskAssignedDateInput').value = today;
       document.getElementById('taskModalTitle').innerHTML = '<i class="ph-bold ph-plus-circle text-orange-500"></i> Assign New Content Task';
@@ -1331,14 +1332,14 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
 
     function handleTaskSubmit(e) {
       e.preventDefault();
-      if (!isAdmin()) return;
       const editId = document.getElementById('taskEditId').value;
+      if (!isAdmin() && editId) return;
       const title = document.getElementById('taskTitleInput').value.trim();
       const category = document.getElementById('taskCategoryInput').value;
       const assignedDate = document.getElementById('taskAssignedDateInput').value;
       const dueDate = document.getElementById('taskDueDateInput').value;
       const assignedTo = document.getElementById('taskAssigneeInput').value;
-      const assignedBy = document.getElementById('taskAssignerInput').value;
+      const assignedBy = isAdmin() ? document.getElementById('taskAssignerInput').value : currentUser.displayName;
       const scriptText = document.getElementById('taskScriptTextInput').value.trim();
       const docLink = document.getElementById('taskDocLinkInput').value.trim();
 
@@ -1359,10 +1360,10 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           createdAt: Date.now()
         };
         tasks.unshift(newTask);
-        addNotification(`New task assigned to ${assignedTo}: "${title}" by ${assignedBy}`);
+        if (isAdmin()) addNotification(`New task assigned to ${assignedTo}: "${title}" by ${assignedBy}`);
       }
 
-      recordActivity(editId ? 'Task updated' : 'Task created', title);
+      if (isAdmin()) recordActivity(editId ? 'Task updated' : 'Task created', title);
       closeTaskModal();
       renderTasks();
       updateCounts();
@@ -1586,6 +1587,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     }
 
     function sendShootToEdit(id) {
+      if (!isAdmin()) return;
       const s = shoots.find(x => x.id === id);
       if (!s) return;
       openTaskModal();
