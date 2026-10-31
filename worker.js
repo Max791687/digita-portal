@@ -102,17 +102,24 @@ function stripEditableFields(task) {
 function isMemberTaskUpdateAllowed(previous, incoming, user) {
   if (!Array.isArray(previous) || !Array.isArray(incoming) || previous.length !== incoming.length) return false;
   const previousById = new Map(previous.map(t => [String(t && t.id), t]));
+  const seen = new Set();
   for (const next of incoming) {
     if (!next || next.id == null) return false;
-    const old = previousById.get(String(next.id));
+    const id = String(next.id);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const old = previousById.get(id);
     if (!old) return false;
-    if (normalizeName(old.assignedTo) !== normalizeName(user.displayName)) return false;
+    if (normalizeName(old.assignedTo) !== normalizeName(user.displayName)) {
+      if (JSON.stringify(old) !== JSON.stringify(next)) return false;
+      continue;
+    }
     if (JSON.stringify(stripEditableFields(old)) !== JSON.stringify(stripEditableFields(next))) return false;
     if (!ALLOWED_STATUSES.includes(next.status)) return false;
-    if (!Number.isInteger(next.progress) || next.progress < 0 || next.progress > 100) return false;
+    if (next.progress !== undefined && (!Number.isInteger(next.progress) || next.progress < 0 || next.progress > 100)) return false;
     if (typeof next.outputLink !== "string" || next.outputLink.length > 2048) return false;
   }
-  return true;
+  return seen.size === previousById.size;
 }
 function emptyWorkspace() {
   return { tasks: [], shoots: [], tools: [], notifications: [], activity: [], updatedAt: null, _revision: null };
