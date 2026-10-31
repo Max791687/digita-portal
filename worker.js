@@ -172,6 +172,7 @@ export default {
         const session = await signSession({ memberId: "pavan", displayName: "Pavan", role: "admin", exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS }, env.SESSION_SECRET);
         return jsonResponse({ success: true, token: session, user: { memberId: "pavan", displayName: "Pavan", role: "admin" } }, 201, origin);
       } catch (error) {
+        console.error("Admin setup failed:", error && error.stack ? error.stack : String(error));
         return jsonResponse({ error: error.status === 413 ? error.message : "Could not complete admin setup" }, error.status || 500, origin);
       }
     }
