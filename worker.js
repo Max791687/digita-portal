@@ -10,7 +10,8 @@ const ALLOWED_MEMBERS = {
   shweta: "Shweta",
   vanita: "Vanita",
   manoj: "Manoj",
-  ashish: "Ashish"
+  ashish: "Ashish",
+  test: "Test"
 };
 const EDITABLE_MEMBER_FIELDS = ["status", "progress", "outputLink"];
 const ALLOWED_STATUSES = ["pending", "in_progress", "changes_required", "completed"];
