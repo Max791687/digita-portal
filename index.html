@@ -57,7 +57,7 @@
       <div id="loginPanel" class="space-y-3">
         <label class="block text-xs font-bold text-slate-300">Your account</label>
         <select id="loginMemberId" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white">
-          <option value="pavan">Pavan (Admin)</option><option value="vijay">Vijay</option><option value="tushar">Tushar</option><option value="mirtunjay">Mirtunjay</option><option value="shweta">Shweta</option><option value="vanita">Vanita</option><option value="manoj">Manoj</option><option value="ashish">Ashish</option>
+          <option value="pavan">Pavan (Admin)</option><option value="vijay">Vijay</option><option value="tushar">Tushar</option><option value="mirtunjay">Mirtunjay</option><option value="shweta">Shweta</option><option value="vanita">Vanita</option><option value="manoj">Manoj</option><option value="ashish">Ashish</option><option value="test">Test</option>
         </select>
         <label class="block text-xs font-bold text-slate-300">Personal PIN</label>
         <input id="loginPin" type="password" autocomplete="current-password" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Enter your PIN">
@@ -1739,7 +1739,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       pushToCloud();
     }
 
-    const TEAM_MEMBER_NAMES = {vijay:"Vijay",tushar:"Tushar",mirtunjay:"Mirtunjay",shweta:"Shweta",vanita:"Vanita",manoj:"Manoj",ashish:"Ashish"};
+    const TEAM_MEMBER_NAMES = {vijay:"Vijay",tushar:"Tushar",mirtunjay:"Mirtunjay",shweta:"Shweta",vanita:"Vanita",manoj:"Manoj",ashish:"Ashish",test:"Test"};
     function setMembersMessage(message, good=false) {
       const el=document.getElementById("membersMessage");
       if(el){el.textContent=message||"";el.className="text-xs min-h-4 "+(good?"text-emerald-300":"text-slate-400");}
