@@ -49,6 +49,33 @@
   </style>
 </head>
 <body class="min-h-screen custom-scrollbar pb-16">
+  <div id="authOverlay" class="fixed inset-0 z-[100] bg-[#070b13] flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl border border-[#1f293d] bg-[#111827] p-6 shadow-2xl">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white text-2xl mb-4"><i class="ph-bold ph-lock-key"></i></div>
+      <h2 class="text-xl font-black text-white">Digital Department Login</h2>
+      <p class="text-xs text-slate-400 mt-1 mb-5">Sign in with your individual team account.</p>
+      <div id="loginPanel" class="space-y-3">
+        <label class="block text-xs font-bold text-slate-300">Your account</label>
+        <select id="loginMemberId" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white">
+          <option value="pavan">Pavan (Admin)</option><option value="vijay">Vijay</option><option value="tushar">Tushar</option><option value="mirtunjay">Mirtunjay</option><option value="shweta">Shweta</option><option value="vanita">Vanita</option><option value="manoj">Manoj</option><option value="ashish">Ashish</option>
+        </select>
+        <label class="block text-xs font-bold text-slate-300">Personal PIN</label>
+        <input id="loginPin" type="password" autocomplete="current-password" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Enter your PIN">
+        <button onclick="loginUser()" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold">Login</button>
+        <button onclick="showFirstAdminSetup()" class="w-full py-2 text-xs text-slate-400 hover:text-white">First-time Admin setup</button>
+      </div>
+      <div id="setupPanel" class="hidden space-y-3">
+        <p class="text-xs text-amber-300">One-time setup for Pavan's Admin account. Use the BOOTSTRAP_SECRET configured in Cloudflare.</p>
+        <label class="block text-xs font-bold text-slate-300">Bootstrap secret</label>
+        <input id="bootstrapSecretInput" type="password" autocomplete="off" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Cloudflare BOOTSTRAP_SECRET">
+        <label class="block text-xs font-bold text-slate-300">Create Admin PIN (minimum 6 characters)</label>
+        <input id="setupAdminPin" type="password" autocomplete="new-password" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Create your personal PIN">
+        <button onclick="setupFirstAdmin()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Create Admin account</button>
+        <button onclick="hideFirstAdminSetup()" class="w-full py-2 text-xs text-slate-400">Back to login</button>
+      </div>
+      <p id="authMessage" class="text-xs text-rose-300 mt-4 min-h-5"></p>
+    </div>
+  </div>
 
   <!-- TOP APP BANNER (BROADCAST) -->
   <div id="liveAlertBanner" class="hidden bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 text-white px-4 py-2.5 shadow-lg flex items-center justify-between text-xs sm:text-sm font-medium sticky top-0 z-50">
@@ -101,6 +128,7 @@
           <span id="toolCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-sky-500 text-white ml-0.5">0</span>
         </button>
 
+        <button id="manageMembersButton" onclick="manageTeamAccounts()" class="hidden px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold">Members</button>
         <button onclick="openAnnounceModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-amber-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
           <i class="ph-bold ph-megaphone text-amber-400"></i>
           <span>Announce</span>
@@ -547,34 +575,111 @@
     // High Reliability Multi-Device Cloud Sync Node
     const CLOUD_API = "https://digital-team-sync.max791687.workers.dev/workspace";
 
-// Shared Team PIN is kept only for this browser tab session, never in public source.
-let teamPin = "";
-let pinPrompted = false;
+let authToken = "";
+let currentUser = null;
 try {
-  teamPin = sessionStorage.getItem("digital_team_pin") || "";
+  authToken = sessionStorage.getItem("digital_auth_token") || "";
+  const savedUser = sessionStorage.getItem("digital_auth_user");
+  currentUser = savedUser ? JSON.parse(savedUser) : null;
 } catch (e) {}
 
-function getTeamPin(forcePrompt = false) {
-  if (teamPin) return teamPin;
-  if (pinPrompted && !forcePrompt) return "";
-  pinPrompted = true;
-
-  const entered = window.prompt("Enter the shared Digital Team PIN:");
-  if (!entered || !entered.trim()) return "";
-
-  teamPin = entered.trim();
-  try {
-    sessionStorage.setItem("digital_team_pin", teamPin);
-  } catch (e) {}
-  return teamPin;
+function isAdmin() { return !!currentUser && currentUser.role === "admin"; }
+function isOwnTask(task) {
+  return !!currentUser && !!task && String(task.assignedTo || "").trim().toLowerCase() === String(currentUser.displayName || "").trim().toLowerCase();
 }
-
-function clearTeamPin() {
-  teamPin = "";
-  try {
-    sessionStorage.removeItem("digital_team_pin");
-  } catch (e) {}
+function authHeaders(json = false) {
+  const headers = { "Authorization": "Bearer " + authToken };
+  if (json) headers["Content-Type"] = "application/json";
+  return headers;
 }
+function showAuthMessage(message, good = false) {
+  const el = document.getElementById("authMessage");
+  if (el) { el.textContent = message || ""; el.className = "text-xs mt-4 min-h-5 " + (good ? "text-emerald-300" : "text-rose-300"); }
+}
+function showFirstAdminSetup() {
+  document.getElementById("loginPanel").classList.add("hidden");
+  document.getElementById("setupPanel").classList.remove("hidden");
+  showAuthMessage("");
+}
+function hideFirstAdminSetup() {
+  document.getElementById("setupPanel").classList.add("hidden");
+  document.getElementById("loginPanel").classList.remove("hidden");
+  showAuthMessage("");
+}
+function saveAuthSession(data) {
+  authToken = data.token;
+  currentUser = data.user;
+  try {
+    sessionStorage.setItem("digital_auth_token", authToken);
+    sessionStorage.setItem("digital_auth_user", JSON.stringify(currentUser));
+  } catch (e) {}
+  document.getElementById("authOverlay").classList.add("hidden");
+  applyRoleUI();
+  pullFromCloud(false);
+  startAutoSync();
+}
+async function loginUser() {
+  const memberId = document.getElementById("loginMemberId").value;
+  const pin = document.getElementById("loginPin").value;
+  if (!pin) return showAuthMessage("Please enter your personal PIN.");
+  try {
+    const res = await fetch(CLOUD_API.replace("/workspace", "/auth/login"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId, pin })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showAuthMessage(data.error || "Login failed.");
+    saveAuthSession(data);
+  } catch (e) { showAuthMessage("Could not connect. Please try again."); }
+}
+async function setupFirstAdmin() {
+  const bootstrapSecret = document.getElementById("bootstrapSecretInput").value;
+  const pin = document.getElementById("setupAdminPin").value;
+  if (!bootstrapSecret || !pin) return showAuthMessage("Enter both values.");
+  try {
+    const res = await fetch(CLOUD_API.replace("/workspace", "/auth/setup"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bootstrapSecret, pin })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showAuthMessage(data.error || "Admin setup failed.");
+    document.getElementById("bootstrapSecretInput").value = "";
+    document.getElementById("setupAdminPin").value = "";
+    saveAuthSession(data);
+  } catch (e) { showAuthMessage("Could not connect. Please try again."); }
+}
+function logoutUser() {
+  authToken = ""; currentUser = null; cloudReady = false; cloudRevision = null;
+  try { sessionStorage.removeItem("digital_auth_token"); sessionStorage.removeItem("digital_auth_user"); } catch (e) {}
+  document.getElementById("authOverlay").classList.remove("hidden");
+  document.getElementById("loginPin").value = "";
+  stopAutoSync();
+}
+function applyRoleUI() {
+  const headerActions = document.querySelector("header .max-w-7xl > div:last-child");
+  if (headerActions && !document.getElementById("accountControls")) {
+    const controls = document.createElement("div");
+    controls.id = "accountControls";
+    controls.className = "flex items-center gap-2";
+    controls.innerHTML = '<span class="text-[11px] text-slate-300 font-semibold">' + escapeHtml(currentUser.displayName) + (isAdmin() ? ' · Admin' : ' · Member') + '</span><button onclick="logoutUser()" class="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold">Logout</button>';
+    headerActions.appendChild(controls);
+  }
+  document.body.classList.toggle("member-mode", !isAdmin());
+  const membersButton = document.getElementById("manageMembersButton");
+  if (membersButton) membersButton.classList.toggle("hidden", !isAdmin());
+  if (!isAdmin()) {
+    activeMemberFilter = "all";
+    document.querySelectorAll('button[onclick*="openToolsModal"],button[onclick*="openAnnounceModal"],button[onclick*="openTaskModal"],button[onclick*="openShootModal"],button[onclick*="exportPortalBackup"],button[onclick*="backupImportInput"],button[onclick*="openCalendar"],button[onclick*="openActivityHistory"],button[onclick*="openGlobalSearch"]').forEach(el => el.classList.add("hidden"));
+  }
+  renderMemberCarousel();
+  renderAll();
+}
+let autoSyncTimer = null;
+function startAutoSync() {
+  stopAutoSync();
+  autoSyncTimer = setInterval(() => { if (authToken) pullFromCloud(true); }, 10000);
+}
+function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoSyncTimer = null; }
 
     let tasks = [];
     let shoots = [];
@@ -638,12 +743,7 @@ function clearTeamPin() {
       isCloudUpdating = true;
       setSyncStatus("Saving team updates...", "amber");
 
-      const pin = getTeamPin();
-      if (!pin) {
-        setSyncStatus("Team PIN needed — click Sync to retry", "slate");
-        isCloudUpdating = false;
-        return;
-      }
+      if (!authToken || !currentUser) { isCloudUpdating = false; return; }
 
       const payload = {
         tasks,
@@ -667,15 +767,14 @@ function clearTeamPin() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + pin
+            'Authorization': 'Bearer ' + authToken
           },
           body: JSON.stringify(payload)
         });
 
         if (res.status === 401) {
-          clearTeamPin();
-          pinPrompted = true;
-          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
+          logoutUser();
+          setSyncStatus("Session expired — please log in again", "slate");
           return;
         }
         if (res.status === 409) {
@@ -708,14 +807,8 @@ function clearTeamPin() {
     }
 
     // --- PULL DATA FROM CLOUDFLARE WORKER ---
-    async function pullFromCloud(silent = true, askForPin = false) {
-      if (isCloudUpdating || isCloudPulling || cloudConflict) return;
-      const pin = getTeamPin(askForPin);
-
-      if (!pin) {
-        if (!silent) setSyncStatus("Team PIN needed — click Sync", "slate");
-        return;
-      }
+    async function pullFromCloud(silent = true) {
+      if (!authToken || !currentUser || isCloudUpdating || isCloudPulling || cloudConflict) return;
 
       if (!silent) setSyncStatus("Checking team updates...", "amber");
 
@@ -724,15 +817,14 @@ function clearTeamPin() {
         const res = await fetch(CLOUD_API + '?t=' + Date.now(), {
           method: 'GET',
           headers: {
-            'Authorization': 'Bearer ' + pin
+            'Authorization': 'Bearer ' + authToken
           },
           cache: 'no-store'
         });
 
         if (res.status === 401) {
-          clearTeamPin();
-          pinPrompted = true;
-          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
+          logoutUser();
+          setSyncStatus("Session expired — please log in again", "slate");
           return;
         }
         if (!res.ok) {
@@ -818,7 +910,7 @@ function clearTeamPin() {
     function forceCloudSync() {
       const icon = document.getElementById('syncIcon');
       if (icon) icon.classList.add('animate-spin');
-      pullFromCloud(false, true).then(() => {
+      pullFromCloud(false).then(() => {
         setTimeout(() => {
           if (icon) icon.classList.remove('animate-spin');
         }, 500);
@@ -848,11 +940,14 @@ function clearTeamPin() {
       renderMemberCarousel();
       renderAll();
 
-      // Connect to the shared database and ask for the Team PIN once.
-      pullFromCloud(false, true);
-
-      // Auto sync every 3 seconds for zero delay
-      setInterval(() => pullFromCloud(true), 3000);
+      if (authToken && currentUser) {
+        document.getElementById("authOverlay").classList.add("hidden");
+        applyRoleUI();
+        pullFromCloud(false);
+        startAutoSync();
+      } else {
+        document.getElementById("authOverlay").classList.remove("hidden");
+      }
     };
 
     function getDashboardLocalDate(date = new Date()) {
@@ -1030,6 +1125,7 @@ function clearTeamPin() {
       if (!container) return;
 
       const filtered = tasks.filter(t => {
+        if (!isAdmin() && !currentUser) return false;
         if (activeMemberFilter !== 'all' && t.assignedTo !== activeMemberFilter) return false;
         if (activeStatusFilter !== 'all' && t.status !== activeStatusFilter) return false;
         if (searchQuery) {
@@ -1052,6 +1148,8 @@ function clearTeamPin() {
       container.innerHTML = filtered.map(t => {
         const isCompleted = t.status === 'completed';
         const isChanges = t.status === 'changes_required';
+        const canEditTask = isAdmin() || isOwnTask(t);
+        const taskProgress = Number.isInteger(t.progress) ? t.progress : 0;
 
         return `
           <div class="bg-[#111827] border border-[#1f293d] rounded-2xl p-4 shadow-lg flex flex-col justify-between">
@@ -1125,7 +1223,7 @@ function clearTeamPin() {
               <div class="mb-3">
                 <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Final Output / Drive Link:</label>
                 <div class="flex items-center gap-1.5">
-                  <input type="url" value="${t.outputLink || ''}" onchange="saveOutputLink('${t.id}', this.value)" placeholder="Paste drive / video output link..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500">
+                  <input type="url" value="${t.outputLink || ''}" ${canEditTask ? '' : 'disabled'} onchange="saveOutputLink('${t.id}', this.value)" placeholder="Paste drive / video output link..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-50">
                   ${t.outputLink ? `
                     <a href="${t.outputLink}" target="_blank" class="p-1 text-emerald-400 hover:text-emerald-300">
                       <i class="ph-bold ph-link text-base"></i>
@@ -1133,18 +1231,22 @@ function clearTeamPin() {
                   ` : ''}
                 </div>
               </div>
+              <div class="mb-3 rounded-xl border border-[#1f293d] bg-[#0c1220] p-2.5">
+                <div class="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 mb-1"><span>Task Progress</span><span id="progressLabel_${t.id}">${taskProgress}%</span></div>
+                <input type="range" min="0" max="100" step="5" value="${taskProgress}" ${canEditTask ? '' : 'disabled'} oninput="document.getElementById('progressLabel_${t.id}').textContent=this.value+'%'" onchange="saveTaskProgress('${t.id}', this.value)" class="w-full accent-orange-500 disabled:opacity-40">
+              </div>
             </div>
 
             <!-- Controls -->
             <div class="pt-3 border-t border-[#1f293d] flex items-center justify-between gap-2">
-              <select onchange="updateTaskStatus('${t.id}', this.value)" class="bg-[#0c1220] border border-[#1f293d] text-xs font-bold rounded-lg px-2 py-1 text-slate-200 focus:outline-none ${isCompleted ? 'text-emerald-400 border-emerald-500/40' : (isChanges ? 'text-rose-400 border-rose-500/40' : '')}">
+              <select ${canEditTask ? '' : 'disabled'} onchange="updateTaskStatus('${t.id}', this.value)" class="bg-[#0c1220] border border-[#1f293d] text-xs font-bold rounded-lg px-2 py-1 text-slate-200 focus:outline-none disabled:opacity-50 ${isCompleted ? 'text-emerald-400 border-emerald-500/40' : (isChanges ? 'text-rose-400 border-rose-500/40' : '')}">
                 <option value="pending" ${t.status === 'pending' ? 'selected' : ''}>⏳ Pending</option>
                 <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>⚡ In Progress</option>
                 <option value="changes_required" ${t.status === 'changes_required' ? 'selected' : ''}>🔄 Changes Required</option>
                 <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✓ Completed</option>
               </select>
 
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 ${isAdmin() ? '' : 'hidden'}">
                 <button onclick="openChangesModal('${t.id}')" title="Request Changes" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
                   <i class="ph-bold ph-warning-circle text-sm"></i>
                 </button>
@@ -1164,6 +1266,7 @@ function clearTeamPin() {
 
     // --- CRUD FUNCTIONS ---
     function openTaskModal() {
+      if (!isAdmin()) return;
       document.getElementById('taskForm').reset();
       document.getElementById('taskEditId').value = '';
       const today = new Date().toISOString().split('T')[0];
@@ -1177,6 +1280,7 @@ function clearTeamPin() {
     }
 
     function editTask(id) {
+      if (!isAdmin()) return;
       const t = tasks.find(x => x.id === id);
       if (!t) return;
 
@@ -1196,6 +1300,7 @@ function clearTeamPin() {
 
     function handleTaskSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return;
       const editId = document.getElementById('taskEditId').value;
       const title = document.getElementById('taskTitleInput').value.trim();
       const category = document.getElementById('taskCategoryInput').value;
@@ -1235,6 +1340,7 @@ function clearTeamPin() {
     }
 
     function deleteTask(id) {
+      if (!isAdmin()) return;
       if (!confirm('Are you sure you want to delete this task?')) return;
       const removedTask = tasks.find(x => x.id === id);
       recordActivity('Task deleted', removedTask ? removedTask.title : id);
@@ -1247,6 +1353,7 @@ function clearTeamPin() {
 
     function updateTaskStatus(id, newStatus) {
       const t = tasks.find(x => x.id === id);
+      if (!t || (!isAdmin() && !isOwnTask(t))) return;
       if (!t) return;
       t.status = newStatus;
       recordActivity('Task status changed', (t.title || 'Task') + ' → ' + newStatus.replace(/_/g, ' '));
@@ -1259,9 +1366,17 @@ function clearTeamPin() {
       pushToCloud();
     }
 
+    function saveTaskProgress(id, value) {
+      const t = tasks.find(x => x.id === id);
+      if (!t || (!isAdmin() && !isOwnTask(t))) return;
+      t.progress = Math.max(0, Math.min(100, Number.parseInt(value, 10) || 0));
+      renderTasks();
+      pushToCloud();
+    }
+
     function saveOutputLink(id, link) {
       const t = tasks.find(x => x.id === id);
-      if (t) {
+      if (t && (isAdmin() || isOwnTask(t))) {
         t.outputLink = (link || '').trim();
         pushToCloud();
       }
@@ -1269,6 +1384,7 @@ function clearTeamPin() {
 
     // --- REVISIONS / CHANGES ---
     function openChangesModal(id) {
+      if (!isAdmin()) return;
       const t = tasks.find(x => x.id === id);
       if (!t) return;
 
@@ -1333,6 +1449,7 @@ function clearTeamPin() {
 
     // --- SHOOTS TRACKER ---
     function openShootModal() {
+      if (!isAdmin()) return;
       document.getElementById('shootTopicInput').value = '';
       document.getElementById('shootDateTimeInput').value = '';
       document.getElementById('shootPresenterInput').value = '';
@@ -1347,6 +1464,7 @@ function clearTeamPin() {
 
     function handleShootSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return;
       const topic = document.getElementById('shootTopicInput').value.trim();
       const dateTime = document.getElementById('shootDateTimeInput').value;
       const presenter = document.getElementById('shootPresenterInput').value.trim();
@@ -1427,6 +1545,7 @@ function clearTeamPin() {
     }
 
     function deleteShoot(id) {
+      if (!isAdmin()) return;
       if (!confirm('Delete this shoot?')) return;
       shoots = shoots.filter(x => x.id !== id);
       renderShoots();
@@ -1444,6 +1563,7 @@ function clearTeamPin() {
 
     // --- TOOLS VAULT ---
     function openToolsModal() {
+      if (!isAdmin()) return;
       renderTools();
       document.getElementById('toolsModal').classList.remove('hidden');
     }
@@ -1454,6 +1574,7 @@ function clearTeamPin() {
 
     function handleToolSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return;
       const name = document.getElementById('toolNameInput').value.trim();
       const category = document.getElementById('toolCategoryInput').value;
       const link = document.getElementById('toolLinkInput').value.trim();
@@ -1500,6 +1621,7 @@ function clearTeamPin() {
     }
 
     function deleteTool(id) {
+      if (!isAdmin()) return;
       const removedTool = tools.find(x => x.id === id);
       if (removedTool) recordActivity('Tool deleted', removedTool.name);
       tools = tools.filter(x => x.id !== id);
@@ -1510,6 +1632,7 @@ function clearTeamPin() {
 
     // --- ANNOUNCEMENT ---
     function openAnnounceModal() {
+      if (!isAdmin()) return;
       document.getElementById('announceTextInput').value = '';
       document.getElementById('announceModal').classList.remove('hidden');
     }
@@ -1519,6 +1642,7 @@ function clearTeamPin() {
     }
 
     function submitAnnouncement() {
+      if (!isAdmin()) return;
       const txt = document.getElementById('announceTextInput').value.trim();
       if (!txt) return;
       triggerAlert(`📢 Announcement: ${txt}`);
@@ -1579,13 +1703,35 @@ function clearTeamPin() {
     }
 
     function clearNotifications() {
+      if (!isAdmin()) return;
       notifications = [];
       renderNotifications();
       pushToCloud();
     }
 
+    async function manageTeamAccounts() {
+      if (!isAdmin()) return;
+      const action = prompt("Team accounts: type CREATE, RESET or LIST");
+      if (!action) return;
+      if (action.toUpperCase() === "LIST") {
+        const res = await fetch(CLOUD_API.replace("/workspace", "/auth/users"), { headers: authHeaders() });
+        const data = await res.json().catch(() => ({}));
+        alert((data.users || []).map(u => u.display_name + " (" + u.member_id + ") — " + (u.active ? "Active" : "Inactive")).join("\n") || data.error || "No accounts");
+        return;
+      }
+      const memberId = prompt("Enter member ID: " + Object.keys({vijay:1,tushar:1,mirtunjay:1,shweta:1,vanita:1,manoj:1,ashish:1}).join(", "));
+      if (!memberId) return;
+      const pin = prompt("Enter a new personal PIN (minimum 6 characters):");
+      if (!pin) return;
+      const endpoint = action.toUpperCase() === "RESET" ? "/auth/users/reset-pin" : "/auth/users";
+      const res = await fetch(CLOUD_API.replace("/workspace", endpoint), { method: "POST", headers: authHeaders(true), body: JSON.stringify({ memberId: memberId.toLowerCase(), pin }) });
+      const data = await res.json().catch(() => ({}));
+      alert(res.ok ? (action.toUpperCase() === "RESET" ? "PIN reset successfully." : "Member account created.") : (data.error || "Request failed."));
+    }
+
     // --- SHARED TEAM UTILITIES ---
     function recordActivity(action, detail) {
+      if (!isAdmin()) return;
       activity.unshift({id:'activity_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),action:String(action||'Workspace updated'),detail:String(detail||''),time:new Date().toISOString()});
       // Retain a larger searchable history; old records beyond the previous 100-entry cap cannot be recovered.
       if(activity.length>5000) activity=activity.slice(0,5000);
