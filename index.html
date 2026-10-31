@@ -550,8 +550,19 @@
 // Shared Team PIN is kept only for this browser tab session, never in public source.
 let teamPin = "";
 let pinPrompted = false;
+let currentUser = null;
+function isAdmin() { return !!currentUser && currentUser.role === "admin"; }
+function canEditTask(task) { return isAdmin() || (!!currentUser && currentUser.role === "member" && task && task.assignedTo === currentUser.name); }
+function applyRoleUI() {
+  document.querySelectorAll("button[onclick], a[onclick]").forEach(el => {
+    const action = el.getAttribute("onclick") || "";
+    const adminAction = ["openTaskModal", "openShootModal", "openAnnounceModal", "clearNotifications", "deleteShoot", "sendShootToEdit", "deleteTool"].some(name => action.includes(name));
+    if (adminAction) el.classList.toggle("hidden", !isAdmin());
+  });
+  renderTasks();
+}
 try {
-  teamPin = sessionStorage.getItem("digital_team_pin") || "";
+  teamPin = sessionStorage.getItem("digital_team_personal_pin") || "";
 } catch (e) {}
 
 function getTeamPin(forcePrompt = false) {
@@ -559,12 +570,12 @@ function getTeamPin(forcePrompt = false) {
   if (pinPrompted && !forcePrompt) return "";
   pinPrompted = true;
 
-  const entered = window.prompt("Enter the shared Digital Team PIN:");
+  const entered = window.prompt("Enter your personal Digital Team PIN:");
   if (!entered || !entered.trim()) return "";
 
   teamPin = entered.trim();
   try {
-    sessionStorage.setItem("digital_team_pin", teamPin);
+    sessionStorage.setItem("digital_team_personal_pin", teamPin);
   } catch (e) {}
   return teamPin;
 }
@@ -572,7 +583,9 @@ function getTeamPin(forcePrompt = false) {
 function clearTeamPin() {
   teamPin = "";
   try {
+    sessionStorage.removeItem("digital_team_personal_pin");
     sessionStorage.removeItem("digital_team_pin");
+    currentUser = null;
   } catch (e) {}
 }
 
@@ -741,6 +754,10 @@ function clearTeamPin() {
         }
 
         const data = await res.json();
+        if (!data || !data.user || typeof data.user.name !== "string" || !["admin", "member"].includes(data.user.role)) {
+          throw new Error("Server did not identify this personal Team PIN.");
+        }
+        currentUser = data.user;
         if (
           !data || typeof data !== 'object' ||
           !Array.isArray(data.tasks) ||
@@ -786,6 +803,7 @@ function clearTeamPin() {
           localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
 
           renderAll();
+          applyRoleUI();
           setSyncStatus("Live Synced with Team", "emerald");
           if (cloudSavePending && !cloudConflict) {
             cloudSavePending = false;
@@ -1164,6 +1182,7 @@ function clearTeamPin() {
 
     // --- CRUD FUNCTIONS ---
     function openTaskModal() {
+      if (!isAdmin()) return alert("Only the admin can assign new tasks.");
       document.getElementById('taskForm').reset();
       document.getElementById('taskEditId').value = '';
       const today = new Date().toISOString().split('T')[0];
@@ -1178,7 +1197,7 @@ function clearTeamPin() {
 
     function editTask(id) {
       const t = tasks.find(x => x.id === id);
-      if (!t) return;
+      if (!t || !canEditTask(t)) return alert("You can only edit tasks assigned to you.");
 
       document.getElementById('taskEditId').value = t.id;
       document.getElementById('taskTitleInput').value = t.title || '';
@@ -1196,13 +1215,15 @@ function clearTeamPin() {
 
     function handleTaskSubmit(e) {
       e.preventDefault();
+      if (!isAdmin() && !document.getElementById("taskEditId").value) return alert("Only the admin can create tasks.");
       const editId = document.getElementById('taskEditId').value;
       const title = document.getElementById('taskTitleInput').value.trim();
       const category = document.getElementById('taskCategoryInput').value;
       const assignedDate = document.getElementById('taskAssignedDateInput').value;
       const dueDate = document.getElementById('taskDueDateInput').value;
-      const assignedTo = document.getElementById('taskAssigneeInput').value;
-      const assignedBy = document.getElementById('taskAssignerInput').value;
+      const originalTask = tasks.find(x => x.id === document.getElementById("taskEditId").value);
+      const assignedTo = isAdmin() ? document.getElementById('taskAssigneeInput').value : (originalTask && originalTask.assignedTo);
+      const assignedBy = isAdmin() ? document.getElementById('taskAssignerInput').value : (originalTask && originalTask.assignedBy);
       const scriptText = document.getElementById('taskScriptTextInput').value.trim();
       const docLink = document.getElementById('taskDocLinkInput').value.trim();
 
@@ -1235,6 +1256,7 @@ function clearTeamPin() {
     }
 
     function deleteTask(id) {
+      if (!isAdmin()) return alert("Only the admin can delete tasks.");
       if (!confirm('Are you sure you want to delete this task?')) return;
       const removedTask = tasks.find(x => x.id === id);
       recordActivity('Task deleted', removedTask ? removedTask.title : id);
@@ -1247,7 +1269,7 @@ function clearTeamPin() {
 
     function updateTaskStatus(id, newStatus) {
       const t = tasks.find(x => x.id === id);
-      if (!t) return;
+      if (!t || !canEditTask(t)) return alert("You can only update tasks assigned to you.");
       t.status = newStatus;
       recordActivity('Task status changed', (t.title || 'Task') + ' → ' + newStatus.replace(/_/g, ' '));
       if (newStatus === 'completed') {
@@ -1261,6 +1283,7 @@ function clearTeamPin() {
 
     function saveOutputLink(id, link) {
       const t = tasks.find(x => x.id === id);
+      if (!t || !canEditTask(t)) return alert("You can only update output links on your own tasks.");
       if (t) {
         t.outputLink = (link || '').trim();
         pushToCloud();
@@ -1269,6 +1292,7 @@ function clearTeamPin() {
 
     // --- REVISIONS / CHANGES ---
     function openChangesModal(id) {
+      if (!isAdmin()) return alert("Only the admin can request changes.");
       const t = tasks.find(x => x.id === id);
       if (!t) return;
 
@@ -1284,6 +1308,7 @@ function clearTeamPin() {
     }
 
     function submitChanges() {
+      if (!isAdmin()) return alert("Only the admin can request changes.");
       const id = document.getElementById('changeTaskId').value;
       const notes = document.getElementById('changeNotesInput').value.trim();
       if (!notes) return alert('Please enter the changes required');
