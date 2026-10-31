@@ -1072,7 +1072,7 @@ function clearTeamPin() {
         const isChanges = t.status === 'changes_required';
 
         return `
-          <div class="bg-[#111827] border border-[#1f293d] rounded-2xl p-4 shadow-lg flex flex-col justify-between">
+          <div data-task-id="${String(t.id)}" class="bg-[#111827] border border-[#1f293d] rounded-2xl p-4 shadow-lg flex flex-col justify-between">
             <div>
               <!-- Category Badge & BOTH Dates (Assigned Date + Due Date) -->
               <div class="flex items-start justify-between gap-2 mb-3">
@@ -1178,6 +1178,13 @@ function clearTeamPin() {
           </div>
         `;
       }).join('');
+      container.querySelectorAll("[data-task-id]").forEach(card => {
+        const task = tasks.find(item => String(item.id) === card.dataset.taskId);
+        const own = canEditTask(task);
+        card.querySelectorAll('select[onchange^="updateTaskStatus"], input[onchange^="saveOutputLink"]').forEach(el => { el.disabled = !own; });
+        card.querySelectorAll('button[onclick^="editTask"]').forEach(el => el.classList.toggle("hidden", !own));
+        card.querySelectorAll('button[onclick^="openChangesModal"], button[onclick^="deleteTask"]').forEach(el => el.classList.toggle("hidden", !isAdmin()));
+      });
     }
 
     // --- CRUD FUNCTIONS ---
@@ -1208,6 +1215,10 @@ function clearTeamPin() {
       document.getElementById('taskAssignerInput').value = t.assignedBy || 'Vanita (Script Writer)';
       document.getElementById('taskScriptTextInput').value = t.scriptText || '';
       document.getElementById('taskDocLinkInput').value = t.docLink || '';
+      ["taskAssigneeInput", "taskAssignerInput"].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.disabled = !isAdmin();
+      });
 
       document.getElementById('taskModalTitle').innerHTML = '<i class="ph-bold ph-pencil-simple text-orange-500"></i> Edit Task Details';
       document.getElementById('taskModal').classList.remove('hidden');
@@ -1372,6 +1383,7 @@ function clearTeamPin() {
 
     function handleShootSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return alert("Only the admin can manage shoots.");
       const topic = document.getElementById('shootTopicInput').value.trim();
       const dateTime = document.getElementById('shootDateTimeInput').value;
       const presenter = document.getElementById('shootPresenterInput').value.trim();
@@ -1444,6 +1456,7 @@ function clearTeamPin() {
     }
 
     function saveShootFootage(id, link) {
+      if (!isAdmin()) return;
       const s = shoots.find(x => x.id === id);
       if (s) {
         s.footageLink = (link || '').trim();
@@ -1452,6 +1465,7 @@ function clearTeamPin() {
     }
 
     function deleteShoot(id) {
+      if (!isAdmin()) return alert("Only the admin can delete shoots.");
       if (!confirm('Delete this shoot?')) return;
       shoots = shoots.filter(x => x.id !== id);
       renderShoots();
@@ -1460,6 +1474,7 @@ function clearTeamPin() {
     }
 
     function sendShootToEdit(id) {
+      if (!isAdmin()) return;
       const s = shoots.find(x => x.id === id);
       if (!s) return;
       openTaskModal();
@@ -1479,6 +1494,7 @@ function clearTeamPin() {
 
     function handleToolSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return alert("Only the admin can manage tools.");
       const name = document.getElementById('toolNameInput').value.trim();
       const category = document.getElementById('toolCategoryInput').value;
       const link = document.getElementById('toolLinkInput').value.trim();
@@ -1525,6 +1541,7 @@ function clearTeamPin() {
     }
 
     function deleteTool(id) {
+      if (!isAdmin()) return alert("Only the admin can delete tools.");
       const removedTool = tools.find(x => x.id === id);
       if (removedTool) recordActivity('Tool deleted', removedTool.name);
       tools = tools.filter(x => x.id !== id);
@@ -1544,6 +1561,7 @@ function clearTeamPin() {
     }
 
     function submitAnnouncement() {
+      if (!isAdmin()) return alert("Only the admin can send announcements.");
       const txt = document.getElementById('announceTextInput').value.trim();
       if (!txt) return;
       triggerAlert(`📢 Announcement: ${txt}`);
@@ -1604,6 +1622,7 @@ function clearTeamPin() {
     }
 
     function clearNotifications() {
+      if (!isAdmin()) return;
       notifications = [];
       renderNotifications();
       pushToCloud();
