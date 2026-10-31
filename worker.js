@@ -117,7 +117,7 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
     if (JSON.stringify(stripEditableFields(old)) !== JSON.stringify(stripEditableFields(next))) return false;
     if (!ALLOWED_STATUSES.includes(next.status)) return false;
     if (next.progress !== undefined && (!Number.isInteger(next.progress) || next.progress < 0 || next.progress > 100)) return false;
-    if (typeof next.outputLink !== "string" || next.outputLink.length > 2048) return false;
+    if (next.outputLink !== undefined && (typeof next.outputLink !== "string" || next.outputLink.length > 2048)) return false;
   }
   return seen.size === previousById.size;
 }
