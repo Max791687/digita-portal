@@ -70,7 +70,7 @@ async function signSession(payload, secret) {
   const signature = await crypto.subtle.sign("HMAC", key, utf8(body));
   return body + "." + bytesToBase64Url(new Uint8Array(signature));
 }
-async function verifySession(token, secret) {
+async function verifySession(token, secret, db) {
   try {
     const parts = token.split(".");
     if (parts.length !== 2) return null;
@@ -78,7 +78,16 @@ async function verifySession(token, secret) {
     const valid = await crypto.subtle.verify("HMAC", key, base64UrlToBytes(parts[1]), utf8(parts[0]));
     if (!valid) return null;
     const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(parts[0])));
-    if (!payload || !payload.memberId || !payload.role || !payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    if (!payload || typeof payload.memberId !== "string" || typeof payload.role !== "string" ||
+      !Number.isInteger(payload.exp) || payload.exp <= Math.floor(Date.now() / 1000)) return null;
+
+    // Re-check the account on every request so deactivated users lose access immediately.
+    const account = await db.prepare(
+      "SELECT member_id, display_name, role, active FROM team_users WHERE member_id = ?"
+    ).bind(payload.memberId).first();
+    if (!account || Number(account.active) !== 1 ||
+      account.role !== payload.role || account.display_name !== payload.displayName) return null;
+
     return payload;
   } catch (_) {
     return null;
@@ -187,7 +196,7 @@ export default {
 
     const authorization = request.headers.get("Authorization") || "";
     const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-    const user = env.SESSION_SECRET && bearer ? await verifySession(bearer, env.SESSION_SECRET) : null;
+    const user = env.SESSION_SECRET && bearer ? await verifySession(bearer, env.SESSION_SECRET, env.DB) : null;
     if (!user) return jsonResponse({ error: "Login required or session expired" }, 401, origin);
 
     if (url.pathname === "/auth/users" && request.method === "GET") {
