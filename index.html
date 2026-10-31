@@ -1357,7 +1357,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       if (!t) return;
       t.status = newStatus;
       recordActivity('Task status changed', (t.title || 'Task') + ' → ' + newStatus.replace(/_/g, ' '));
-      if (newStatus === 'completed') {
+      if (isAdmin() && newStatus === 'completed') {
         addNotification(`✓ Task completed: "${t.title}" by ${t.assignedTo}`);
       }
       renderTasks();
@@ -1520,15 +1520,15 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
 
             <div class="mb-3">
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Raw Footage Drive Link:</label>
-              <input type="url" value="${s.footageLink || ''}" onchange="saveShootFootage('${s.id}', this.value)" placeholder="Paste raw video Drive folder..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white">
+              <input type="url" value="${s.footageLink || ''}" ${isAdmin() ? '' : 'disabled'} onchange="saveShootFootage('${s.id}', this.value)" placeholder="Paste raw video Drive folder..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white disabled:opacity-50">
             </div>
           </div>
 
           <div class="pt-3 border-t border-[#1f293d] flex items-center justify-between">
-            <button onclick="sendShootToEdit('${s.id}')" class="px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 font-bold text-xs flex items-center gap-1 border border-orange-500/30">
+            <button ${isAdmin() ? '' : 'hidden'} onclick="sendShootToEdit('${s.id}')" class="px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 font-bold text-xs flex items-center gap-1 border border-orange-500/30">
               <i class="ph-bold ph-scissors"></i> Send to Edit
             </button>
-            <button onclick="deleteShoot('${s.id}')" class="p-1.5 text-slate-500 hover:text-rose-400">
+            <button ${isAdmin() ? '' : 'hidden'} onclick="deleteShoot('${s.id}')" class="p-1.5 text-slate-500 hover:text-rose-400">
               <i class="ph-bold ph-trash text-sm"></i>
             </button>
           </div>
@@ -1537,6 +1537,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     }
 
     function saveShootFootage(id, link) {
+      if (!isAdmin()) return;
       const s = shoots.find(x => x.id === id);
       if (s) {
         s.footageLink = (link || '').trim();
