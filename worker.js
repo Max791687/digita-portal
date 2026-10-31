@@ -1,7 +1,7 @@
 const ALLOWED_ORIGIN = "https://digital-portal-staging.pages.dev";
 const MAX_BODY_SIZE = 1024 * 1024;
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
-const PBKDF2_ITERATIONS = 180000;
+const PBKDF2_ITERATIONS = 100000;
 const ALLOWED_MEMBERS = {
   pavan: "Pavan",
   vijay: "Vijay",
