@@ -46,7 +46,9 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(1.2); }
     }
-  </style>
+  
+.member-mode #toolsListContainer button[onclick*="deleteTool"] { display: none !important; }
+</style>
 </head>
 <body class="min-h-screen custom-scrollbar pb-16">
   <div id="authOverlay" class="fixed inset-0 z-[100] bg-[#070b13] flex items-center justify-center p-4">
@@ -490,7 +492,7 @@
         <button onclick="closeToolsModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-lg"></i></button>
       </div>
 
-      <form onsubmit="handleToolSubmit(event)" class="bg-[#0c1220] p-3 rounded-xl border border-[#1f293d] mb-4 space-y-2.5 text-xs">
+      <form id="toolsAddForm" onsubmit="handleToolSubmit(event)" class="bg-[#0c1220] p-3 rounded-xl border border-[#1f293d] mb-4 space-y-2.5 text-xs">
         <span class="font-bold text-slate-300 block">Add New Tool or Resource Link:</span>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input type="text" id="toolNameInput" required placeholder="Tool Name (e.g. ElevenLabs, CapCut)" class="bg-[#111827] border border-[#1f293d] rounded-lg px-2.5 py-1.5 text-white">
@@ -698,7 +700,7 @@ function applyRoleUI() {
   if (membersButton) membersButton.classList.toggle("hidden", !isAdmin());
   if (!isAdmin()) {
     activeMemberFilter = "all";
-    document.querySelectorAll('button[onclick*="openToolsModal"],button[onclick*="openAnnounceModal"],button[onclick*="openTaskModal"],button[onclick*="openShootModal"],button[onclick*="exportPortalBackup"],button[onclick*="backupImportInput"],button[onclick*="openCalendar"],button[onclick*="openActivityHistory"],button[onclick*="openGlobalSearch"]').forEach(el => el.classList.add("hidden"));
+    document.querySelectorAll('button[onclick*="openAnnounceModal"],button[onclick*="openTaskModal"],button[onclick*="openShootModal"],button[onclick*="exportPortalBackup"],button[onclick*="backupImportInput"],button[onclick*="openCalendar"],button[onclick*="openActivityHistory"],button[onclick*="openGlobalSearch"]').forEach(el => el.classList.add("hidden"));
   }
   renderMemberCarousel();
   renderAll();
@@ -1593,7 +1595,8 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
 
     // --- TOOLS VAULT ---
     function openToolsModal() {
-      if (!isAdmin()) return;
+      const addForm = document.getElementById('toolsAddForm');
+      if (addForm) addForm.classList.toggle('hidden', !isAdmin());
       renderTools();
       document.getElementById('toolsModal').classList.remove('hidden');
     }
