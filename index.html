@@ -122,15 +122,17 @@
     </div>
   </div>
 
-  <!-- WORKSPACE UPDATE FEEDBACK POPUP -->
-  <div id="workspaceUpdatePopup" class="hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="workspaceUpdateTitle">
-    <div class="w-full max-w-sm rounded-3xl border border-[#263449] bg-[#111827] p-6 text-center shadow-2xl">
-      <div id="workspaceUpdateIcon" class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
-        <i class="ph-bold ph-check-circle text-3xl"></i>
+  <!-- NEW TOOL ANNOUNCEMENT POPUP -->
+  <div id="newToolAnnouncementPopup" class="hidden fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="newToolAnnouncementTitle">
+    <div class="w-full max-w-sm rounded-3xl border border-indigo-400/30 bg-[#111827] p-6 text-center shadow-2xl">
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-300">
+        <i class="ph-bold ph-calendar-check text-4xl"></i>
       </div>
-      <h2 id="workspaceUpdateTitle" class="text-lg font-black text-white">Workspace Updated Successfully!</h2>
-      <p id="workspaceUpdateMessage" class="mt-2 text-sm leading-relaxed text-slate-400">Latest changes have been synced with the team.</p>
-      <button type="button" onclick="dismissWorkspaceUpdatePopup()" class="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white transition hover:bg-emerald-500">OK, Got it</button>
+      <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-indigo-300">New Tool Added</p>
+      <h2 id="newToolAnnouncementTitle" class="mt-2 text-2xl font-black text-white">Content Calendar</h2>
+      <p class="mt-2 text-sm leading-relaxed text-slate-400">Plan and track Reels, Shorts, YouTube videos and posts in one shared team calendar.</p>
+      <button type="button" onclick="openAnnouncedContentCalendar()" class="mt-5 w-full rounded-xl bg-indigo-500 px-4 py-3 font-bold text-white transition hover:bg-indigo-600">Explore Content Calendar</button>
+      <button type="button" onclick="dismissNewToolAnnouncement()" class="mt-3 text-xs font-semibold text-slate-400 hover:text-white">Maybe later</button>
     </div>
   </div>
 
@@ -740,14 +742,11 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     let isCloudUpdating = false;
     let isCloudPulling = false;
     let cloudRevision = null;
-    let lastCloudWorkspaceSignature = null;
     let cloudReady = false;
     let cloudConflict = false;
     let cloudSavePending = false;
     let cloudLocalEditPendingInitial = false;
     let cloudLocalEditDuringPull = false;
-    // First successful cloud pull establishes a baseline; only later additions trigger popups.
-    let cloudToolsInitialized = false;
 
     function playChime() {
       try {
@@ -843,13 +842,10 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           throw new Error("Cloud save response did not include a revision");
         }
         cloudRevision = saved.revision;
-        lastCloudWorkspaceSignature = JSON.stringify({ tasks, shoots, tools, notifications, activity, contentCalendar });
         setSyncStatus("Live Synced with Team", "emerald");
-        showWorkspaceUpdatePopup("success");
       } catch (e) {
         console.error("Cloud save failed:", e);
         setSyncStatus("Cloud save failed — local backup kept", "slate");
-        showWorkspaceUpdatePopup("error", "Your local backup is safe, but the cloud update failed. Please retry Sync.");
       } finally {
         isCloudUpdating = false;
         if (cloudSavePending && cloudReady && !cloudConflict) {
@@ -959,17 +955,9 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
           localStorage.setItem('dd_content_calendar_v1', JSON.stringify(contentCalendar));
 
-          const receivedWorkspaceSignature = JSON.stringify({ tasks, shoots, tools, notifications, activity, contentCalendar });
-          const receivedRemoteUpdate = lastCloudWorkspaceSignature !== null && receivedWorkspaceSignature !== lastCloudWorkspaceSignature;
-          lastCloudWorkspaceSignature = receivedWorkspaceSignature;
-
           renderAll();
           setSyncStatus("Live Synced with Team", "emerald");
-          if (!silent) {
-            showWorkspaceUpdatePopup("success", "The latest team workspace data has been loaded.");
-          } else if (receivedRemoteUpdate) {
-            showWorkspaceUpdatePopup("success", "A teammate updated the workspace. The latest changes are now synced.");
-          }
+          showNewToolAnnouncementOnce();
           if (cloudSavePending && !cloudConflict) {
             cloudSavePending = false;
             void pushToCloud();
@@ -987,43 +975,40 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       }
     }
 
-    let workspaceUpdatePopupTimer = null;
+    let newToolAnnouncementTimer = null;
 
-    function showWorkspaceUpdatePopup(type = "success", message = "") {
-      const popup = document.getElementById("workspaceUpdatePopup");
-      const icon = document.getElementById("workspaceUpdateIcon");
-      const title = document.getElementById("workspaceUpdateTitle");
-      const detail = document.getElementById("workspaceUpdateMessage");
-      if (!popup || !icon || !title || !detail) return;
-
-      const isError = type === "error";
-      icon.className = isError
-        ? "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/15 text-rose-400"
-        : "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400";
-      icon.innerHTML = isError
-        ? '<i class="ph-bold ph-warning-circle text-3xl"></i>'
-        : '<i class="ph-bold ph-check-circle text-3xl"></i>';
-      title.textContent = isError ? "Update Could Not Be Saved" : "Workspace Updated Successfully!";
-      detail.textContent = message || (isError
-        ? "Please check your connection and try syncing again."
-        : "Latest changes have been synced with the team.");
-
+    function showNewToolAnnouncementOnce() {
+      const userKey = currentUser && (currentUser.id || currentUser.username || currentUser.displayName)
+        ? String(currentUser.id || currentUser.username || currentUser.displayName).toLowerCase().replace(/[^a-z0-9_-]/g, "_")
+        : "team";
+      const seenKey = "dd_seen_tool_announcement_content_calendar_v1_" + userKey;
+      try {
+        if (localStorage.getItem(seenKey) === "1") return;
+        localStorage.setItem(seenKey, "1");
+      } catch (e) {}
+      const popup = document.getElementById("newToolAnnouncementPopup");
+      if (!popup) return;
       popup.classList.remove("hidden");
       popup.classList.add("flex");
-      if (workspaceUpdatePopupTimer) window.clearTimeout(workspaceUpdatePopupTimer);
-      workspaceUpdatePopupTimer = window.setTimeout(dismissWorkspaceUpdatePopup, 2800);
+      if (newToolAnnouncementTimer) window.clearTimeout(newToolAnnouncementTimer);
+      newToolAnnouncementTimer = window.setTimeout(dismissNewToolAnnouncement, 7000);
     }
 
-    function dismissWorkspaceUpdatePopup() {
-      const popup = document.getElementById("workspaceUpdatePopup");
+    function dismissNewToolAnnouncement() {
+      const popup = document.getElementById("newToolAnnouncementPopup");
       if (popup) {
         popup.classList.add("hidden");
         popup.classList.remove("flex");
       }
-      if (workspaceUpdatePopupTimer) {
-        window.clearTimeout(workspaceUpdatePopupTimer);
-        workspaceUpdatePopupTimer = null;
+      if (newToolAnnouncementTimer) {
+        window.clearTimeout(newToolAnnouncementTimer);
+        newToolAnnouncementTimer = null;
       }
+    }
+
+    function openAnnouncedContentCalendar() {
+      dismissNewToolAnnouncement();
+      if (typeof openContentCalendar === "function") openContentCalendar();
     }
 
     function setSyncStatus(txt, clr) {
