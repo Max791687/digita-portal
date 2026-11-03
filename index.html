@@ -747,6 +747,8 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     let cloudSavePending = false;
     let cloudLocalEditPendingInitial = false;
     let cloudLocalEditDuringPull = false;
+    // Track the first successful cloud tool load before announcing newly added tools.
+    let cloudToolsInitialized = false;
 
     function playChime() {
       try {
@@ -982,12 +984,12 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         ? String(currentUser.id || currentUser.username || currentUser.displayName).toLowerCase().replace(/[^a-z0-9_-]/g, "_")
         : "team";
       const seenKey = "dd_seen_tool_announcement_content_calendar_v1_" + userKey;
+      const popup = document.getElementById("newToolAnnouncementPopup");
+      if (!popup) return;
       try {
         if (localStorage.getItem(seenKey) === "1") return;
         localStorage.setItem(seenKey, "1");
       } catch (e) {}
-      const popup = document.getElementById("newToolAnnouncementPopup");
-      if (!popup) return;
       popup.classList.remove("hidden");
       popup.classList.add("flex");
       if (newToolAnnouncementTimer) window.clearTimeout(newToolAnnouncementTimer);
