@@ -146,7 +146,7 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
   return true;
 }
 function emptyWorkspace() {
-  return { tasks: [], shoots: [], tools: [], notifications: [], activity: [], updatedAt: null, _revision: null };
+  return { tasks: [], shoots: [], tools: [], notifications: [], activity: [], contentCalendar: [], updatedAt: null, _revision: null };
 }
 
 export default {
@@ -287,7 +287,8 @@ export default {
         if (!data || typeof data !== "object" || Array.isArray(data) ||
           !Array.isArray(data.tasks) || !Array.isArray(data.shoots) ||
           !Array.isArray(data.tools) || !Array.isArray(data.notifications) ||
-          !Array.isArray(data.activity)) return jsonResponse({ error: "Invalid workspace data" }, 400, origin);
+          !Array.isArray(data.activity) ||
+          (data.contentCalendar !== undefined && !Array.isArray(data.contentCalendar))) return jsonResponse({ error: "Invalid workspace data" }, 400, origin);
         if (!Object.prototype.hasOwnProperty.call(data, "expectedRevision") ||
           !(data.expectedRevision === null || (typeof data.expectedRevision === "string" && data.expectedRevision.length > 0))) {
           return jsonResponse({ error: "Revision required. Please refresh the portal." }, 428, origin);
@@ -299,15 +300,22 @@ export default {
           if (data.expectedRevision !== row.updated_at) return jsonResponse({ error: "Data conflict detected. Latest cloud data was preserved.", conflict: true }, 409, origin);
           if (!isMemberTaskUpdateAllowed(previous.tasks, data.tasks, user)) return jsonResponse({ error: "Members may update only their own task status, progress and output link." }, 403, origin);
           const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+          const previousCalendar = Array.isArray(previous.contentCalendar) ? previous.contentCalendar : [];
+          const incomingCalendar = Array.isArray(data.contentCalendar) ? data.contentCalendar : previousCalendar;
           if (!sameJson(previous.shoots, data.shoots) || !sameJson(previous.tools, data.tools) ||
-            !sameJson(previous.notifications, data.notifications) || !sameJson(previous.activity, data.activity)) {
-            return jsonResponse({ error: "Members cannot modify shoots, tools, notifications or activity records." }, 403, origin);
+            !sameJson(previous.notifications, data.notifications) || !sameJson(previous.activity, data.activity) ||
+            !sameJson(previousCalendar, incomingCalendar)) {
+            return jsonResponse({ error: "Members cannot modify shoots, tools, notifications, activity records or the content calendar." }, 403, origin);
           }
         }
         const expectedRevision = data.expectedRevision;
         const previousRevisionTime = expectedRevision === null ? NaN : Date.parse(expectedRevision);
         const updatedAt = new Date(Number.isFinite(previousRevisionTime) ? Math.max(Date.now(), previousRevisionTime + 1) : Date.now()).toISOString();
         const workspaceData = { ...data };
+        if (!Array.isArray(workspaceData.contentCalendar)) {
+          const storedWorkspace = row ? JSON.parse(row.data) : {};
+          workspaceData.contentCalendar = Array.isArray(storedWorkspace.contentCalendar) ? storedWorkspace.contentCalendar : [];
+        }
         delete workspaceData.expectedRevision;
         delete workspaceData._revision;
         workspaceData.updatedAt = updatedAt;
