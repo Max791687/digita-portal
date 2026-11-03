@@ -206,6 +206,7 @@
           <i class="ph-bold ph-video-camera"></i>
           <span>Shoots Tracker ( <span id="tabShootsCount">0</span> )</span>
         </button>
+        <button id="tabCalendarBtn" onclick="openContentCalendar()" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition"><i class="ph-bold ph-calendar-check"></i><span>Content Calendar</span></button>
       </div>
 
       <div id="shootsTopAction" class="hidden">
@@ -326,6 +327,8 @@
         <p class="text-xs text-slate-500 mt-1">Plan camera setups, topics, and presenter call-times.</p>
       </div>
     </div>
+
+    <section id="contentCalendarViewContainer" class="hidden"></section>
 
   </main>
 
@@ -717,6 +720,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     let tools = [];
     let notifications = [];
     let activity = [];
+    let contentCalendar = [];
     let activeMemberFilter = 'all';
     let activeStatusFilter = 'all';
     let searchQuery = '';
@@ -782,6 +786,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         tools,
         notifications,
         activity,
+        contentCalendar,
         expectedRevision: cloudRevision,
         updatedAt: Date.now()
       };
@@ -793,6 +798,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         localStorage.setItem('dd_tools_v2', JSON.stringify(tools));
         localStorage.setItem('dd_notifs_v2', JSON.stringify(notifications));
         localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
+        localStorage.setItem('dd_content_calendar_v1', JSON.stringify(contentCalendar));
 
         const res = await fetch(CLOUD_API, {
           method: 'PUT',
@@ -871,6 +877,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           !Array.isArray(data.tools) ||
           !Array.isArray(data.notifications) ||
           !Array.isArray(data.activity) ||
+          (data.contentCalendar !== undefined && !Array.isArray(data.contentCalendar)) ||
           !(data._revision === null || (typeof data._revision === 'string' && data._revision.length > 0))
         ) {
           throw new Error("Cloud workspace response is incomplete or invalid");
@@ -927,12 +934,14 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           shoots = Array.isArray(data.shoots) ? data.shoots : [];
           notifications = Array.isArray(data.notifications) ? data.notifications : [];
           activity = data.activity;
+          contentCalendar = Array.isArray(data.contentCalendar) ? data.contentCalendar : [];
 
           localStorage.setItem('dd_tasks_v2', JSON.stringify(tasks));
           localStorage.setItem('dd_shoots_v2', JSON.stringify(shoots));
           localStorage.setItem('dd_tools_v2', JSON.stringify(tools));
           localStorage.setItem('dd_notifs_v2', JSON.stringify(notifications));
           localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
+          localStorage.setItem('dd_content_calendar_v1', JSON.stringify(contentCalendar));
 
           renderAll();
           setSyncStatus("Live Synced with Team", "emerald");
@@ -986,11 +995,13 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         const tl = localStorage.getItem('dd_tools_v2');
         const n = localStorage.getItem('dd_notifs_v2');
         const a = localStorage.getItem('dd_activity_v1');
+        const cc = localStorage.getItem('dd_content_calendar_v1');
         if (t) tasks = JSON.parse(t);
         if (s) shoots = JSON.parse(s);
         if (tl) tools = JSON.parse(tl);
         if (n) notifications = JSON.parse(n);
         if (a) activity = JSON.parse(a);
+        if (cc) contentCalendar = JSON.parse(cc);
       } catch (e) {}
 
       // Default Date setup in modal (Assigned = Today)
@@ -1127,6 +1138,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       renderNotifications();
       updateCounts();
       renderDashboard();
+      if (typeof renderContentCalendar === 'function') renderContentCalendar();
     }
 
     // --- CAROUSEL ---
@@ -1910,7 +1922,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       const box=document.getElementById('globalSearchResults');box.innerHTML=results.length?results.slice(0,100).map(x=>'<div class="p-3 rounded-xl bg-[#0c1220] border border-[#1f293d]"><div class="text-[10px] uppercase text-sky-400 font-bold">'+x.kind+'</div><div class="text-sm font-bold text-white break-words">'+escapeHtml(x.title)+'</div><div class="text-xs text-slate-400 break-words">'+escapeHtml(x.detail)+'</div></div>').join(''):'<div class="text-center text-sm text-slate-400 py-8">No results found. Try another keyword or filter.</div>';
     }
     function exportPortalBackup(){
-      const snap={format:'digital-portal-backup',version:1,exportedAt:new Date().toISOString(),tasks,shoots,tools,notifications,activity};
+      const snap={format:'digital-portal-backup',version:1,exportedAt:new Date().toISOString(),tasks,shoots,tools,notifications,activity,contentCalendar};
       const blob=new Blob([JSON.stringify(snap,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
       a.href=url;a.download='digital-portal-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);setSyncStatus('Backup downloaded','emerald');
     }
@@ -1918,7 +1930,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       const file=event.target.files&&event.target.files[0];event.target.value='';if(!file)return;
       try{const snap=JSON.parse(await file.text());if(!snap||snap.format!=='digital-portal-backup'||!Array.isArray(snap.tasks)||!Array.isArray(snap.shoots)||!Array.isArray(snap.tools)||!Array.isArray(snap.notifications))throw new Error('This file is not a valid Digital Portal backup.');
       if(!confirm('Restore this backup? Current portal data will be replaced on all synced devices. Download a fresh backup first if you may need current data.'))return;
-      tasks=snap.tasks;shoots=snap.shoots;tools=snap.tools;notifications=snap.notifications;activity=Array.isArray(snap.activity)?snap.activity:[];
+      tasks=snap.tasks;shoots=snap.shoots;tools=snap.tools;notifications=snap.notifications;activity=Array.isArray(snap.activity)?snap.activity:[];if(Array.isArray(snap.contentCalendar))contentCalendar=snap.contentCalendar;
       recordActivity('Backup restored','Data restored from backup file');
       localStorage.setItem('dd_tasks_v2',JSON.stringify(tasks));localStorage.setItem('dd_shoots_v2',JSON.stringify(shoots));localStorage.setItem('dd_tools_v2',JSON.stringify(tools));localStorage.setItem('dd_notifs_v2',JSON.stringify(notifications));localStorage.setItem('dd_activity_v1',JSON.stringify(activity));
       renderAll();await pushToCloud();alert('Restore attempted. Check the sync status before using another device.');}catch(err){alert('Could not restore backup: '+(err.message||'Invalid file'));}
@@ -1929,10 +1941,15 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     function switchMainTab(tab) {
       const tasksC = document.getElementById('tasksViewContainer');
       const shootsC = document.getElementById('shootsViewContainer');
+      const calendarC = document.getElementById('contentCalendarViewContainer');
+      const dashboard = document.getElementById('smartDashboard');
       const tabT = document.getElementById('tabTasksBtn');
       const tabS = document.getElementById('tabShootsBtn');
+      const tabC = document.getElementById('tabCalendarBtn');
       const shootsAct = document.getElementById('shootsTopAction');
-
+      if (calendarC) calendarC.classList.add('hidden');
+      if (dashboard) dashboard.classList.remove('hidden');
+      if (tabC) tabC.className = "px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition";
       if (tab === 'tasks') {
         tasksC.classList.remove('hidden');
         shootsC.classList.add('hidden');
@@ -1969,5 +1986,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       document.getElementById('tabShootsCount').innerText = shoots.length;
     }
   </script>
+  <script src="./content-calendar.js"></script>
+
 </body>
 </html>
