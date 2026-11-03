@@ -122,6 +122,18 @@
     </div>
   </div>
 
+  <!-- WORKSPACE UPDATE FEEDBACK POPUP -->
+  <div id="workspaceUpdatePopup" class="hidden fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="workspaceUpdateTitle">
+    <div class="w-full max-w-sm rounded-3xl border border-[#263449] bg-[#111827] p-6 text-center shadow-2xl">
+      <div id="workspaceUpdateIcon" class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+        <i class="ph-bold ph-check-circle text-3xl"></i>
+      </div>
+      <h2 id="workspaceUpdateTitle" class="text-lg font-black text-white">Workspace Updated Successfully!</h2>
+      <p id="workspaceUpdateMessage" class="mt-2 text-sm leading-relaxed text-slate-400">Latest changes have been synced with the team.</p>
+      <button type="button" onclick="dismissWorkspaceUpdatePopup()" class="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white transition hover:bg-emerald-500">OK, Got it</button>
+    </div>
+  </div>
+
   <!-- HEADER -->
   <header class="border-b border-[#1f293d] bg-[#0c1220]/90 backdrop-blur sticky top-0 z-40 px-4 sm:px-6 py-3.5">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
@@ -831,9 +843,11 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         }
         cloudRevision = saved.revision;
         setSyncStatus("Live Synced with Team", "emerald");
+        showWorkspaceUpdatePopup("success");
       } catch (e) {
         console.error("Cloud save failed:", e);
         setSyncStatus("Cloud save failed — local backup kept", "slate");
+        showWorkspaceUpdatePopup("error", "Your local backup is safe, but the cloud update failed. Please retry Sync.");
       } finally {
         isCloudUpdating = false;
         if (cloudSavePending && cloudReady && !cloudConflict) {
@@ -945,6 +959,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
 
           renderAll();
           setSyncStatus("Live Synced with Team", "emerald");
+          if (!silent) showWorkspaceUpdatePopup("success", "The latest team workspace data has been loaded.");
           if (cloudSavePending && !cloudConflict) {
             cloudSavePending = false;
             void pushToCloud();
@@ -959,6 +974,45 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           cloudSavePending = false;
           void pushToCloud();
         }
+      }
+    }
+
+    let workspaceUpdatePopupTimer = null;
+
+    function showWorkspaceUpdatePopup(type = "success", message = "") {
+      const popup = document.getElementById("workspaceUpdatePopup");
+      const icon = document.getElementById("workspaceUpdateIcon");
+      const title = document.getElementById("workspaceUpdateTitle");
+      const detail = document.getElementById("workspaceUpdateMessage");
+      if (!popup || !icon || !title || !detail) return;
+
+      const isError = type === "error";
+      icon.className = isError
+        ? "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/15 text-rose-400"
+        : "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400";
+      icon.innerHTML = isError
+        ? '<i class="ph-bold ph-warning-circle text-3xl"></i>'
+        : '<i class="ph-bold ph-check-circle text-3xl"></i>';
+      title.textContent = isError ? "Update Could Not Be Saved" : "Workspace Updated Successfully!";
+      detail.textContent = message || (isError
+        ? "Please check your connection and try syncing again."
+        : "Latest changes have been synced with the team.");
+
+      popup.classList.remove("hidden");
+      popup.classList.add("flex");
+      if (workspaceUpdatePopupTimer) window.clearTimeout(workspaceUpdatePopupTimer);
+      workspaceUpdatePopupTimer = window.setTimeout(dismissWorkspaceUpdatePopup, 2800);
+    }
+
+    function dismissWorkspaceUpdatePopup() {
+      const popup = document.getElementById("workspaceUpdatePopup");
+      if (popup) {
+        popup.classList.add("hidden");
+        popup.classList.remove("flex");
+      }
+      if (workspaceUpdatePopupTimer) {
+        window.clearTimeout(workspaceUpdatePopupTimer);
+        workspaceUpdatePopupTimer = null;
       }
     }
 
