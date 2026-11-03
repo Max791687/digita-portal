@@ -29,7 +29,6 @@
     </div>
     <div class="rounded-2xl border border-[#1f293d] bg-[#111827] p-4"><div class="flex items-center justify-between gap-2 mb-3"><h3 class="text-sm font-bold text-white">Upcoming publishing schedule</h3><span id="ccUpcomingCount" class="text-[10px] text-slate-500"></span></div><div id="ccUpcomingList" class="space-y-2"></div></div>`;
 
-  document.getElementById('tabShootsBtn').insertAdjacentHTML('afterend','<button id="tabCalendarBtn" onclick="openContentCalendar()" class="'+inactiveTab+'"><i class="ph-bold ph-calendar-check"></i><span>Content Calendar</span></button>');
   document.body.insertAdjacentHTML('beforeend', `
     <div id="contentCalendarModal" class="hidden fixed inset-0 z-[95] bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
       <div class="max-w-xl mx-auto my-5 rounded-2xl border border-[#29364d] bg-[#111827] p-5 shadow-2xl">
