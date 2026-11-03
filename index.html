@@ -740,6 +740,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     let isCloudUpdating = false;
     let isCloudPulling = false;
     let cloudRevision = null;
+    let lastCloudWorkspaceSignature = null;
     let cloudReady = false;
     let cloudConflict = false;
     let cloudSavePending = false;
@@ -842,6 +843,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           throw new Error("Cloud save response did not include a revision");
         }
         cloudRevision = saved.revision;
+        lastCloudWorkspaceSignature = JSON.stringify({ tasks, shoots, tools, notifications, activity, contentCalendar });
         setSyncStatus("Live Synced with Team", "emerald");
         showWorkspaceUpdatePopup("success");
       } catch (e) {
@@ -957,9 +959,17 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
           localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
           localStorage.setItem('dd_content_calendar_v1', JSON.stringify(contentCalendar));
 
+          const receivedWorkspaceSignature = JSON.stringify({ tasks, shoots, tools, notifications, activity, contentCalendar });
+          const receivedRemoteUpdate = lastCloudWorkspaceSignature !== null && receivedWorkspaceSignature !== lastCloudWorkspaceSignature;
+          lastCloudWorkspaceSignature = receivedWorkspaceSignature;
+
           renderAll();
           setSyncStatus("Live Synced with Team", "emerald");
-          if (!silent) showWorkspaceUpdatePopup("success", "The latest team workspace data has been loaded.");
+          if (!silent) {
+            showWorkspaceUpdatePopup("success", "The latest team workspace data has been loaded.");
+          } else if (receivedRemoteUpdate) {
+            showWorkspaceUpdatePopup("success", "A teammate updated the workspace. The latest changes are now synced.");
+          }
           if (cloudSavePending && !cloudConflict) {
             cloudSavePending = false;
             void pushToCloud();
