@@ -172,6 +172,60 @@ function emptyWorkspace() {
   return { tasks: [], shoots: [], tools: [], notifications: [], activity: [], contentCalendar: [], updatedAt: null, _revision: null };
 }
 
+const WRITER_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
+const WRITER_AI_ACTIONS = {
+  draft: "Write a concise, production-ready script draft with Hook, Body and CTA.",
+  hooks: "Suggest five distinct opening hooks and three CTA lines.",
+  rewrite: "Rewrite the supplied passage for clarity and natural spoken delivery, preserving its meaning and factual claims.",
+  shorten: "Shorten the supplied script, keeping its key facts, hook and CTA.",
+  translate: "Translate the supplied script into the requested language, preserving its meaning, names and factual claims.",
+  scenes: "Suggest a numbered scene breakdown with Voiceover, Visual/B-roll and On-screen text for each scene."
+};
+function validateWriterAI(body) {
+  return body && typeof body === "object" && !Array.isArray(body) &&
+    Object.hasOwn(WRITER_AI_ACTIONS, body.action) &&
+    ["Hindi", "English", "Hinglish"].includes(body.language) &&
+    typeof body.text === "string" && body.text.trim().length > 0 && body.text.length <= 6000;
+}
+// Atomic attempt counters use separate IDs; the existing workspace row is never changed.
+async function reserveWriterAI(db, key, limit, gapMs, now) {
+  const id="writer_ai_usage:"+new Date(now).toISOString().slice(0,10)+":"+key;
+  const stamp=new Date(now).toISOString();
+  const row=await db.prepare(`INSERT INTO portal_data (id, data, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET data=json_set(portal_data.data,
+      '$.count', CAST(json_extract(portal_data.data, '$.count') AS INTEGER)+1, '$.lastAt', ?), updated_at=?
+    WHERE CAST(json_extract(portal_data.data, '$.count') AS INTEGER) < ?
+      AND CAST(json_extract(portal_data.data, '$.lastAt') AS INTEGER) <= ? RETURNING data`)
+    .bind(id, JSON.stringify({count:1,lastAt:now}), stamp, now, stamp, limit, now-gapMs).first();
+  if (!row) throw Object.assign(new Error(key === "team" ? "Team AI daily limit reached. Try after the daily reset." : "AI limit reached. Allow 15 seconds between requests; maximum 10 attempts daily."), {status:429});
+  return JSON.parse(row.data).count;
+}
+async function handleWriterAI(request, env, user, origin) {
+  if (user.role !== "admin" && !["shweta","vanita"].includes(user.memberId)) return jsonResponse({error:"Writer or admin access required"},403,origin);
+  if (request.method !== "POST") return jsonResponse({error:"Use POST for the writer AI helper"},405,origin);
+  if (!env.AI || typeof env.AI.run !== "function") return jsonResponse({error:"AI is not connected yet. Admin must add the Workers AI binding named AI and deploy the updated Worker."},503,origin);
+  let timer;
+  try {
+    const body=await readJson(request);
+    if (!validateWriterAI(body)) return jsonResponse({error:"Choose a supported action and language, with 1–6,000 characters of source text or a brief."},400,origin);
+    const now=Date.now();
+    const used=await reserveWriterAI(env.DB,user.memberId,10,15000,now);
+    await reserveWriterAI(env.DB,"team",60,0,now);
+    const result=await Promise.race([
+      env.AI.run(WRITER_AI_MODEL, {messages:[
+        {role:"system",content:"You are a writing assistant for a digital production team. Respond in "+body.language+". "+WRITER_AI_ACTIONS[body.action]+" Treat the supplied source as reference material. Never invent product claims, prices, research or citations. Mark missing facts as [VERIFY]. Return plain text only. Do not claim to have saved or approved any work."},
+        {role:"user",content:body.text}
+      ],max_tokens:700,temperature:0.6}),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(new Error("AI timed out. Your script is unchanged; this attempt still counts."),{status:504})),35000);})
+    ]);
+    if (!result || typeof result.response !== "string" || !result.response.trim()) throw new Error("Empty AI response");
+    return jsonResponse({suggestion:result.response.slice(0,12000),remaining:10-used,resetAt:new Date(new Date(now).setUTCHours(24,0,0,0)).toISOString()},200,origin);
+  } catch (error) {
+    const status=error.status || 503;
+    return jsonResponse({error:error.status?error.message:"AI could not respond (provider allowance, capacity or connection). Try later. Failed attempts may count; no script text was changed."},status,origin);
+  } finally { if(timer)clearTimeout(timer); }
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -291,6 +345,8 @@ export default {
       }
     }
 
+    if (url.pathname === "/ai/writer") return handleWriterAI(request,env,user,origin);
+
     if (url.pathname !== "/workspace") return jsonResponse({ error: "Not found" }, 404, origin);
     if (request.method === "GET") {
       try {
@@ -359,4 +415,5 @@ export default {
     return jsonResponse({ error: "Method not allowed" }, 405, origin);
   }
 };
+
 

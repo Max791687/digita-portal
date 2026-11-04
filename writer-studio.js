@@ -73,8 +73,53 @@
   }
   extras.querySelectorAll('textarea,input,select').forEach(el=>el.oninput=remember);
   $('wsAddScene').onclick=()=>{addScene();remember();};
+  const aiBox=document.createElement('section');aiBox.className='rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 my-4';
+  aiBox.innerHTML=`<h3 class="font-bold text-indigo-300">✦ AI Writing Helper</h3><p class="text-xs text-slate-400 mt-1">Send only the text you choose below to Cloudflare AI. Suggestions need your review; they are not saved or inserted automatically.</p><div class="grid sm:grid-cols-2 gap-3 my-3"><label class="text-xs">Help with<select id="wsAIAction" class="${inputClass}"><option value="draft">Script draft from brief</option><option value="hooks">Hooks & CTA ideas</option><option value="rewrite">Rewrite passage</option><option value="shorten">Shorten script</option><option value="translate">Translate script</option><option value="scenes">Scene / B-roll ideas</option></select></label><label class="text-xs">Output language<select id="wsAILanguage" class="${inputClass}"><option>Hinglish</option><option>Hindi</option><option>English</option></select></label></div><label class="text-xs">Your brief or source text (maximum 6,000 characters)<textarea id="wsAIInput" rows="4" maxlength="6000" class="${inputClass}" placeholder="Describe the topic, audience, duration and verified key points, or paste a passage to improve…"></textarea></label><div class="flex flex-wrap gap-2 my-3"><button id="wsAIUseText" class="text-xs rounded-lg bg-[#29364d] px-3 py-2">Use selected text / current script</button><button id="wsAIGenerate" class="${buttonClass}">Generate suggestion</button><button id="wsAICancel" class="text-xs rounded-lg bg-[#29364d] px-3 py-2 hidden">Cancel</button></div><p id="wsAIStatus" role="status" class="text-xs text-amber-300 my-2"></p><label class="block text-xs">AI suggestion<textarea id="wsAIOutput" readonly rows="7" class="${inputClass}" placeholder="Your suggestion will appear here…"></textarea></label><button id="wsAIInsert" class="text-xs rounded-lg bg-indigo-600 px-3 py-2 mt-3" disabled>Append suggestion to my script</button><p class="text-xs text-slate-400 mt-3">App limit: 10 attempts per person daily, 15 seconds between requests, 60 team attempts daily. Provider free allowance is shared and may run out earlier. Failed/cancelled attempts may count. Daily reset: 05:30 AM IST. AI can make mistakes; verify facts before publishing.</p>`;
+  extras.after(aiBox);
+  let aiController=null, aiRunning=false;
+  function resetAI() {
+    if(aiController)aiController.abort();aiController=null;aiRunning=false;
+    $('wsAIInput').value='';$('wsAIOutput').value='';$('wsAIStatus').textContent='';
+    $('wsAIGenerate').disabled=false;$('wsAIInsert').disabled=true;$('wsAICancel').classList.add('hidden');
+  }
+  $('wsAIUseText').onclick=()=>{
+    const text=$('wsText'),selection=text.value.slice(text.selectionStart,text.selectionEnd),source=selection||text.value;
+    if(source.length>6000){$('wsAIStatus').textContent='Select a passage of 6,000 characters or fewer in the main script first.';return;}
+    $('wsAIInput').value=source;$('wsAIStatus').textContent=selection?'Selected passage copied.':'Current script copied. Review it before generating.';
+  };
+  $('wsAICancel').onclick=()=>{if(aiController)aiController.abort();};
+  $('wsAIGenerate').onclick=async()=>{
+    if(aiRunning||!opened)return;
+    const task=tasks.find(t=>String(t.id)===opened);if(!task||!canEdit(task))return;
+    const text=$('wsAIInput').value.trim();if(!text||text.length>6000){$('wsAIStatus').textContent='Enter a brief or source text (1–6,000 characters).';return;}
+    const owner=currentUser.memberId,taskId=opened,token=authToken,controller=new AbortController();aiController=controller;aiRunning=true;
+    $('wsAIGenerate').disabled=true;$('wsAIInsert').disabled=true;$('wsAIOutput').value='';$('wsAICancel').classList.remove('hidden');$('wsAIStatus').textContent='Generating… your script stays unchanged.';
+    const timer=setTimeout(()=>controller.abort(),45000);
+    try {
+      const response=await fetch(CLOUD_API.replace(/\/workspace$/, '/ai/writer'),{method:'POST',headers:authHeaders(true),signal:controller.signal,body:JSON.stringify({action:$('wsAIAction').value,language:$('wsAILanguage').value,text})});
+      const data=await response.json().catch(()=>({}));
+      if(aiController!==controller||owner!==currentUser?.memberId||token!==authToken||taskId!==opened)return;
+      if(response.status===401)throw new Error('Session expired. Download unsaved writing, then log in again.');
+      if(response.status===404)throw new Error('AI endpoint is not deployed yet. Admin must update the Worker and add the AI binding.');
+      if(!response.ok)throw new Error(data.error||'AI is unavailable. Try later.');
+      if(typeof data.suggestion!=='string'||!data.suggestion.trim())throw new Error('No suggestion returned.');
+      $('wsAIOutput').value=data.suggestion;$('wsAIInsert').disabled=false;
+      $('wsAIStatus').textContent='Suggestion ready — '+data.remaining+' app attempts remaining today. Review before inserting.';
+    } catch(error) {
+      if(aiController===controller&&taskId===opened)$('wsAIStatus').textContent=error.name==='AbortError'?'Request cancelled or timed out. Your script is unchanged; the attempt may still count.':error.message;
+    } finally {
+      clearTimeout(timer);
+      if(aiController===controller){aiController=null;aiRunning=false;$('wsAIGenerate').disabled=false;$('wsAICancel').classList.add('hidden');}
+    }
+  };
+  $('wsAIInsert').onclick=()=>{
+    const t=tasks.find(t=>String(t.id)===opened);if(!t||!canEdit(t)||!$('wsAIOutput').value.trim())return;
+    const text=$('wsText').value,suggestion=$('wsAIOutput').value,next=text+(text?'\n\n':'')+suggestion;
+    if(next.length>20000){$('wsAIStatus').textContent='This would exceed the 20,000 character script limit. Copy a smaller part instead.';return;}
+    $('wsText').value=next;remember();$('wsAIInsert').disabled=true;$('wsAIStatus').textContent='Added to your browser draft. Use Save script to sync with the team.';
+  };
   $('wsText').oninput = remember; $('wsFeedback').oninput = remember;
-  $('wsClose').onclick = () => { if (busy) return; if (dirty && !confirm('Close with unsynced work? Download a copy or recover the browser draft later.')) return; modal.classList.add('hidden'); opened = null; dirty = false; };
+  $('wsClose').onclick = () => { if (busy) return; if (dirty && !confirm('Close with unsynced work? Download a copy or recover the browser draft later.')) return; resetAI(); modal.classList.add('hidden'); opened = null; dirty = false; };
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   $('wsRecover').onclick = () => { try { const d = JSON.parse(localStorage.getItem(draftKey())); if (!d) return message('No browser draft found for this account and task.'); if (!confirm('Replace editor text with your saved browser draft?')) return; $('wsText').value = d.text; if (d.workspace) loadWorkspace(d.workspace); if (isAdmin()) $('wsFeedback').value = d.feedback || ''; remember(); } catch (_) { message('Could not recover draft.'); } };
   $('wsTemplate').onclick = () => {
@@ -98,12 +143,14 @@
   function snapshot(t) { return JSON.stringify([t.scriptText || '',t.scriptReview || 'draft',t.scriptFeedback || '',t.writerBrief || '',t.assignedTo,t.scriptWorkspace || null]); }
   function edit(id) {
     const t = tasks.find(t => String(t.id) === id); if (!t || !writing(t) || !currentUser) return;
+    resetAI();
     opened = id; baseline = snapshot(t); dirty = false;
     $('wsTitle').textContent = t.title; $('wsMeta').textContent = t.assignedTo + ' · Due: ' + (t.dueDate || 'Not set') + ' · ' + (t.scriptReview || 'draft');
     $('wsBrief').textContent = 'Brief: ' + (t.writerBrief || 'No brief provided.');
     $('wsExistingFeedback').textContent = t.scriptFeedback ? 'Admin feedback: ' + t.scriptFeedback : '';
     $('wsText').value = t.scriptText || ''; $('wsText').readOnly = !canEdit(t); $('wsFeedback').value = t.scriptFeedback || '';
     loadWorkspace(t.scriptWorkspace);
+    aiBox.classList.toggle('hidden',!canEdit(t));
     extras.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=!canEdit(t));
     ['wsSave','wsSubmit','wsTemplate'].forEach(id => $(id).classList.toggle('hidden', !canEdit(t)));
     ['wsApprove','wsRevision','wsFeedbackWrap'].forEach(id => $(id).classList.toggle('hidden', !isAdmin()));
@@ -193,7 +240,8 @@
   function hideStudio() { root.classList.add('hidden'); btn.className=inactive; }
   const oldSwitch=window.switchMainTab; window.switchMainTab=function(...args){hideStudio();return oldSwitch.apply(this,args);};
   const oldCalendar=window.openContentCalendar; window.openContentCalendar=function(...args){hideStudio();return oldCalendar.apply(this,args);};
-  const oldLogout=window.logoutUser; window.logoutUser=function(...args){if(busy)return; if(dirty&&!confirm('Log out with unsynced script work? Download a copy first if needed.'))return;modal.classList.add('hidden');opened=null;dirty=false;hideStudio();root.replaceChildren();return oldLogout.apply(this,args);};
+  const oldLogout=window.logoutUser; window.logoutUser=function(...args){if(busy)return; if(dirty&&!confirm('Log out with unsynced script work? Download a copy first if needed.'))return;resetAI();modal.classList.add('hidden');opened=null;dirty=false;hideStudio();root.replaceChildren();return oldLogout.apply(this,args);};
   function openStudio() { if(!currentUser)return; ['tasksViewContainer','shootsViewContainer','contentCalendarViewContainer','smartDashboard','shootsTopAction'].forEach(id=>$(id)?.classList.add('hidden')); ['tabTasksBtn','tabShootsBtn','tabCalendarBtn'].forEach(id=>$(id).className=inactive); btn.className=inactive+' bg-orange-500/10 text-orange-300'; root.classList.remove('hidden'); renderWriterStudio(); }
 })();
+
 
