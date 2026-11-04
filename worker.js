@@ -107,8 +107,22 @@ function normalizeName(value) {
 function stripEditableFields(task, writing = false) {
   const copy = { ...task };
   for (const field of EDITABLE_MEMBER_FIELDS) delete copy[field];
-  if (writing) { delete copy.scriptText; delete copy.scriptReview; }
+  if (writing) { delete copy.scriptText; delete copy.scriptReview; delete copy.scriptWorkspace; }
   return copy;
+}
+function validScriptWorkspace(w) {
+  if (w === undefined) return true;
+  if (!w || typeof w !== "object" || Array.isArray(w) || w.version !== 1 ||
+    Object.keys(w).some(k=>!["version","brief","scenes","researchNotes","wpm"].includes(k)) ||
+    !Number.isInteger(w.wpm) || w.wpm < 60 || w.wpm > 240 ||
+    typeof w.researchNotes !== "string" || w.researchNotes.length > 10000 ||
+    !w.brief || typeof w.brief !== "object" || Array.isArray(w.brief) ||
+    !Array.isArray(w.scenes) || w.scenes.length > 40) return false;
+  const keys=["brand","topic","audience","language","duration","keyPoints","cta"];
+  if (Object.keys(w.brief).some(k=>!keys.includes(k)) || keys.some(k=>typeof w.brief[k] !== "string" || w.brief[k].length > 2000)) return false;
+  return w.scenes.every(s=>s && typeof s === "object" && !Array.isArray(s) &&
+    Object.keys(s).every(k=>["voiceover","visual","screen"].includes(k)) &&
+    ["voiceover","visual","screen"].every(k=>typeof s[k] === "string" && s[k].length <= 2000));
 }
 function isMemberTaskUpdateAllowed(previous, incoming, user) {
   if (!Array.isArray(previous) || !Array.isArray(incoming) || incoming.length < previous.length) return false;
@@ -128,7 +142,7 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
         typeof next.category !== "string" || next.category.length > 80 ||
         typeof next.assignedDate !== "string" || typeof next.dueDate !== "string" ||
         !validAssignee || normalizeName(next.assignedBy) !== normalizeName(user.displayName) ||
-        typeof next.scriptText !== "string" || next.scriptText.length > 20000 ||
+        typeof next.scriptText !== "string" || next.scriptText.length > 20000 || !validScriptWorkspace(next.scriptWorkspace) ||
         typeof next.docLink !== "string" || next.docLink.length > 2048 ||
         next.status !== "pending" || next.outputLink !== "" ||
         !Number.isFinite(next.createdAt) || Object.prototype.hasOwnProperty.call(next, "progress")) return false;
@@ -141,9 +155,10 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
     const writing = old.category === "SCRIPT WRITING" && ["shweta", "vanita"].includes(user.memberId);
     if (JSON.stringify(stripEditableFields(old, writing)) !== JSON.stringify(stripEditableFields(next, writing))) return false;
     if (writing) {
+      if (!validScriptWorkspace(next.scriptWorkspace)) return false;
       if (typeof next.scriptText !== "string" || next.scriptText.length > 20000) return false;
       if (next.scriptReview !== old.scriptReview && !["draft", "submitted"].includes(next.scriptReview)) return false;
-      if (next.scriptText !== old.scriptText && !["draft", "submitted"].includes(next.scriptReview)) return false;
+      if ((next.scriptText !== old.scriptText || JSON.stringify(next.scriptWorkspace) !== JSON.stringify(old.scriptWorkspace)) && !["draft", "submitted"].includes(next.scriptReview)) return false;
       if (next.scriptReview === "submitted" && !next.scriptText.trim()) return false;
     }
     if (!ALLOWED_STATUSES.includes(next.status)) return false;
@@ -344,3 +359,4 @@ export default {
     return jsonResponse({ error: "Method not allowed" }, 405, origin);
   }
 };
+

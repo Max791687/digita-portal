@@ -28,19 +28,74 @@
   const canEdit = t => isAdmin() || (isOwnTask(t) && ['shweta','vanita'].includes(currentUser?.memberId));
   const draftKey = () => 'dd_writer_draft_v1:' + (currentUser?.memberId || '') + ':' + opened;
   function message(t) { $('wsMessage').textContent = t; }
-  function count() { const s = $('wsText').value; $('wsCount').textContent = (s.trim() ? s.trim().split(/\s+/u).length : 0) + ' words · ' + s.length + '/20,000 characters'; }
+  function count() { const s = $('wsText').value; $('wsCount').textContent = (s.trim() ? s.trim().split(/\s+/u).length : 0) + ' words · ' + s.length + '/20,000 characters'; updateDuration(); }
   function remember() {
     dirty = true; count();
-    try { localStorage.setItem(draftKey(), JSON.stringify({text:$('wsText').value, feedback:$('wsFeedback').value, base:baseline})); message('Browser draft saved. Team copy updates when you Save.'); }
+    try { localStorage.setItem(draftKey(), JSON.stringify({text:$('wsText').value, feedback:$('wsFeedback').value, workspace:readWorkspace(), base:baseline})); message('Browser draft saved. Team copy updates when you Save.'); }
     catch (_) { message('Browser storage unavailable. Download a copy before leaving.'); }
   }
+  const briefFields={brand:'Brand / client',topic:'Topic',audience:'Audience',language:'Language',duration:'Target duration',keyPoints:'Key points',cta:'Call to action'};
+  const extras=document.createElement('div'); extras.className='space-y-4 my-4';
+  extras.innerHTML=`<details class="rounded-xl border border-[#29364d] p-3" open><summary class="font-bold cursor-pointer">Brief checklist <span id="wsBriefCount" class="text-xs text-orange-300"></span></summary><p class="text-xs text-slate-400 mt-2">Your planning notes; the assigned brief above stays unchanged.</p><div class="grid sm:grid-cols-2 gap-3 mt-3">${Object.entries(briefFields).map(([k,v])=>`<label class="text-xs">${v}<textarea id="wsBrief_${k}" maxlength="2000" rows="2" class="${inputClass}"></textarea></label>`).join('')}</div></details>
+    <div class="rounded-xl border border-[#29364d] p-3"><label class="text-xs">Template type<select id="wsTemplateType" class="${inputClass}"><option value="reel">Reel / Short</option><option value="youtube">YouTube Video</option><option value="ad">Ad / Promo</option><option value="explainer">Explainer</option></select></label><p class="text-xs text-slate-400 mt-2">Choose a structure, then use Insert Template above.</p></div>
+    <div class="rounded-xl border border-[#29364d] p-3"><div class="flex flex-wrap justify-between gap-2"><h3 class="font-bold">Scene-wise editor</h3><button id="wsAddScene" class="${buttonClass}">+ Add scene</button></div><p class="text-xs text-slate-400 mt-2">Break the script into spoken lines, visuals and on-screen text. Maximum 40 scenes.</p><div id="wsScenes" class="space-y-3 mt-3"></div></div>
+    <label class="block text-sm">Research notes & source links<textarea id="wsResearch" rows="5" maxlength="10000" class="${inputClass}" placeholder="Verified facts, product details, reference URLs and source dates…"></textarea><span class="block text-xs text-slate-400 mt-1">Sources are notes; links and claims are not automatically verified.</span></label>
+    <div class="rounded-xl border border-[#29364d] p-3"><label class="text-xs">Speaking speed (words / minute)<input id="wsWpm" type="number" min="60" max="240" step="1" value="140" class="${inputClass}"></label><p id="wsDuration" class="text-sm text-orange-300 mt-2"></p><p class="text-xs text-slate-400 mt-1">Approximate spoken length; pauses, visuals and Hindi/Hinglish delivery can change the final duration.</p></div>`;
+  $('wsText').parentElement.after(extras);
+  $('wsTemplate').textContent='Insert selected template';
+  function readWorkspace() {
+    const brief=Object.fromEntries(Object.keys(briefFields).map(k=>[k,$('wsBrief_'+k).value]));
+    const scenes=Array.from($('wsScenes').children).map(row=>({voiceover:row.querySelector('[data-field="voiceover"]').value,visual:row.querySelector('[data-field="visual"]').value,screen:row.querySelector('[data-field="screen"]').value}));
+    const raw=Number($('wsWpm').value),wpm=Number.isFinite(raw)?Math.min(240,Math.max(60,Math.round(raw))):140;
+    return {version:1,brief,scenes,researchNotes:$('wsResearch').value,wpm};
+  }
+  function addScene(scene={}) {
+    if ($('wsScenes').children.length>=40) return message('Maximum 40 scenes.');
+    const row=document.createElement('div');row.className='rounded-xl bg-[#0c1220] border border-[#29364d] p-3';
+    row.innerHTML=`<div class="flex flex-wrap items-center gap-2 mb-2"><strong class="wsSceneLabel text-sm"></strong><button data-move="up" class="text-xs px-2 py-1 bg-[#29364d] rounded-lg" aria-label="Move scene up">↑</button><button data-move="down" class="text-xs px-2 py-1 bg-[#29364d] rounded-lg" aria-label="Move scene down">↓</button><button data-remove class="text-xs text-rose-300 ml-auto">Remove scene</button></div><div class="grid md:grid-cols-3 gap-3">${[['voiceover','Voiceover / dialogue'],['visual','Visual / B-roll'],['screen','On-screen text']].map(([key,label])=>`<label class="text-xs">${label}<textarea data-field="${key}" rows="4" maxlength="2000" class="${inputClass}"></textarea></label>`).join('')}</div>`;
+    row.querySelectorAll('textarea').forEach(el=>{el.value=String(scene[el.dataset.field]||'');el.oninput=remember;});
+    row.querySelector('[data-remove]').onclick=()=>{if(Array.from(row.querySelectorAll('textarea')).some(t=>t.value.trim())&&!confirm('Remove this scene and its text?'))return;row.remove();numberScenes();remember();};
+    row.querySelectorAll('[data-move]').forEach(button=>button.onclick=()=>{if(button.dataset.move==='up'&&row.previousElementSibling)row.previousElementSibling.before(row);else if(button.dataset.move==='down'&&row.nextElementSibling)row.nextElementSibling.after(row);numberScenes();remember();});
+    $('wsScenes').append(row);numberScenes();
+  }
+  function numberScenes() {Array.from($('wsScenes').children).forEach((row,i)=>row.querySelector('.wsSceneLabel').textContent='Scene '+(i+1));}
+  function loadWorkspace(w) {
+    w=w&&w.version===1?w:{};
+    Object.keys(briefFields).forEach(k=>$('wsBrief_'+k).value=String(w.brief?.[k]||''));
+    $('wsResearch').value=w.researchNotes||'';$('wsWpm').value=w.wpm||140;
+    $('wsScenes').replaceChildren();(Array.isArray(w.scenes)?w.scenes:[]).slice(0,40).forEach(addScene);
+  }
+  function updateDuration() {
+    const w=readWorkspace(),spoken=w.scenes.map(s=>s.voiceover).join(' ').trim(),text=spoken||$('wsText').value.trim();
+    const words=text?text.split(/\s+/u).length:0,seconds=Math.ceil(words*60/w.wpm);
+    $('wsDuration').textContent='Estimated speech: '+Math.floor(seconds/60)+'m '+seconds%60+'s · '+words+' words · '+(spoken?'scene voiceover':'main script');
+    $('wsBriefCount').textContent=Object.values(w.brief).filter(v=>v.trim()).length+'/7 filled';
+  }
+  extras.querySelectorAll('textarea,input,select').forEach(el=>el.oninput=remember);
+  $('wsAddScene').onclick=()=>{addScene();remember();};
   $('wsText').oninput = remember; $('wsFeedback').oninput = remember;
   $('wsClose').onclick = () => { if (busy) return; if (dirty && !confirm('Close with unsynced work? Download a copy or recover the browser draft later.')) return; modal.classList.add('hidden'); opened = null; dirty = false; };
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
-  $('wsRecover').onclick = () => { try { const d = JSON.parse(localStorage.getItem(draftKey())); if (!d) return message('No browser draft found for this account and task.'); if (!confirm('Replace editor text with your saved browser draft?')) return; $('wsText').value = d.text; if (isAdmin()) $('wsFeedback').value = d.feedback || ''; remember(); } catch (_) { message('Could not recover draft.'); } };
-  $('wsTemplate').onclick = () => { if ($('wsText').value.trim() && !confirm('Replace current text with the template?')) return; $('wsText').value = 'HOOK:\n\nBODY / KEY POINTS:\n\nVISUAL / B-ROLL NOTES:\n\nCTA:\n'; remember(); };
-  $('wsDownload').onclick = () => { const a=document.createElement('a'), url=URL.createObjectURL(new Blob([$ ('wsText').value],{type:'text/plain;charset=utf-8'})); a.href=url; a.download='script.txt'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
-  function snapshot(t) { return JSON.stringify([t.scriptText || '',t.scriptReview || 'draft',t.scriptFeedback || '',t.writerBrief || '',t.assignedTo]); }
+  $('wsRecover').onclick = () => { try { const d = JSON.parse(localStorage.getItem(draftKey())); if (!d) return message('No browser draft found for this account and task.'); if (!confirm('Replace editor text with your saved browser draft?')) return; $('wsText').value = d.text; if (d.workspace) loadWorkspace(d.workspace); if (isAdmin()) $('wsFeedback').value = d.feedback || ''; remember(); } catch (_) { message('Could not recover draft.'); } };
+  $('wsTemplate').onclick = () => {
+    const templates = {
+      reel:'HOOK (0–3 sec):\n\nPROBLEM / CONTEXT:\n\nVALUE / DEMO:\n\nCTA:\n',
+      youtube:'OPENING HOOK:\n\nINTRO / PROMISE:\n\nSECTION 1:\n\nSECTION 2:\n\nSECTION 3:\n\nRECAP / CTA:\n',
+      ad:'AUDIENCE PROBLEM:\n\nPRODUCT / SOLUTION:\n\nKEY BENEFITS:\n\nPROOF (verify claims):\n\nOFFER / CTA:\n',
+      explainer:'QUESTION / HOOK:\n\nWHAT IT IS:\n\nHOW IT WORKS:\n\nEXAMPLE:\n\nTAKEAWAY / CTA:\n'
+    };
+    if ($('wsText').value.trim() && !confirm('Replace the main script with this template? Scene notes stay unchanged.')) return;
+    $('wsText').value=templates[$('wsTemplateType').value]; remember();
+  };
+  $('wsDownload').onclick = () => {
+    const w=readWorkspace();
+    const exported=[$('wsTitle').textContent, $('wsBrief').textContent, 'MAIN SCRIPT', $('wsText').value,
+      'BRIEF CHECKLIST', ...Object.entries(w.brief).map(([k,v])=>k+': '+v),
+      'SCENE BREAKDOWN', ...w.scenes.map((x,i)=>'Scene '+(i+1)+'\nVoiceover: '+x.voiceover+'\nVisual / B-roll: '+x.visual+'\nOn-screen text: '+x.screen),
+      'RESEARCH / SOURCES',w.researchNotes].join('\n\n');
+    const a=document.createElement('a'),url=URL.createObjectURL(new Blob([exported],{type:'text/plain;charset=utf-8'})); a.href=url;a.download='script.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  function snapshot(t) { return JSON.stringify([t.scriptText || '',t.scriptReview || 'draft',t.scriptFeedback || '',t.writerBrief || '',t.assignedTo,t.scriptWorkspace || null]); }
   function edit(id) {
     const t = tasks.find(t => String(t.id) === id); if (!t || !writing(t) || !currentUser) return;
     opened = id; baseline = snapshot(t); dirty = false;
@@ -48,6 +103,8 @@
     $('wsBrief').textContent = 'Brief: ' + (t.writerBrief || 'No brief provided.');
     $('wsExistingFeedback').textContent = t.scriptFeedback ? 'Admin feedback: ' + t.scriptFeedback : '';
     $('wsText').value = t.scriptText || ''; $('wsText').readOnly = !canEdit(t); $('wsFeedback').value = t.scriptFeedback || '';
+    loadWorkspace(t.scriptWorkspace);
+    extras.querySelectorAll('input,textarea,select,button').forEach(el=>el.disabled=!canEdit(t));
     ['wsSave','wsSubmit','wsTemplate'].forEach(id => $(id).classList.toggle('hidden', !canEdit(t)));
     ['wsApprove','wsRevision','wsFeedbackWrap'].forEach(id => $(id).classList.toggle('hidden', !isAdmin()));
     $('wsRecover').classList.toggle('hidden',!canEdit(t)); count(); message('');
@@ -66,12 +123,14 @@
       if (!registered) return message('Your new script is not synced yet. Check the cloud connection and try again.');
       pendingScripts.delete(opened);
     }
-    const text=$('wsText').value;
+    const sceneVoiceover=readWorkspace().scenes.map((s,i)=>'SCENE '+(i+1)+'\n'+s.voiceover).join('\n\n');
+    const text=$('wsText').value.trim() ? $('wsText').value : (readWorkspace().scenes.some(s=>s.voiceover.trim())?sceneVoiceover:'');
     if (text.length>20000) return message('Maximum script length is 20,000 characters.');
     if (['submitted','approved'].includes(review) && !text.trim()) return message('Write the script before submitting or approving.');
     if (review==='changes_required' && !$('wsFeedback').value.trim()) return message('Add feedback so the writer knows what to change.');
     remember(); busy=true; ['wsSave','wsSubmit','wsApprove','wsRevision'].forEach(id=>$(id).disabled=true);
-    t.scriptText=text; t.scriptReview=review;
+    if (!$('wsText').value.trim() && text) $('wsText').value=text;
+    t.scriptText=text; t.scriptReview=review; t.scriptWorkspace=readWorkspace();
     if (isAdmin()) t.scriptFeedback=$('wsFeedback').value.trim();
     if (review==='approved') { t.status='completed'; t.progress=100; }
     else if (review==='changes_required') t.status='changes_required';
@@ -137,3 +196,4 @@
   const oldLogout=window.logoutUser; window.logoutUser=function(...args){if(busy)return; if(dirty&&!confirm('Log out with unsynced script work? Download a copy first if needed.'))return;modal.classList.add('hidden');opened=null;dirty=false;hideStudio();root.replaceChildren();return oldLogout.apply(this,args);};
   function openStudio() { if(!currentUser)return; ['tasksViewContainer','shootsViewContainer','contentCalendarViewContainer','smartDashboard','shootsTopAction'].forEach(id=>$(id)?.classList.add('hidden')); ['tabTasksBtn','tabShootsBtn','tabCalendarBtn'].forEach(id=>$(id).className=inactive); btn.className=inactive+' bg-orange-500/10 text-orange-300'; root.classList.remove('hidden'); renderWriterStudio(); }
 })();
+

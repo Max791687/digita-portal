@@ -936,7 +936,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
               const merged = { ...cloudTask, status: localTask.status };
               if (Object.prototype.hasOwnProperty.call(localTask, 'progress')) merged.progress = localTask.progress;
               if (Object.prototype.hasOwnProperty.call(localTask, 'outputLink')) merged.outputLink = localTask.outputLink;
-              if (cloudTask.category === 'SCRIPT WRITING' && ['shweta','vanita'].includes(currentUser.memberId)) { merged.scriptText = localTask.scriptText; if (localTask.scriptReview !== undefined) merged.scriptReview = localTask.scriptReview; }
+              if (cloudTask.category === 'SCRIPT WRITING' && ['shweta','vanita'].includes(currentUser.memberId)) { merged.scriptText = localTask.scriptText; if (localTask.scriptWorkspace !== undefined) merged.scriptWorkspace = localTask.scriptWorkspace; if (localTask.scriptReview !== undefined) merged.scriptReview = localTask.scriptReview; }
               return merged;
             });
             memberLocalTasks.forEach(localTask => {
@@ -2045,4 +2045,5 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
 
 </body>
 </html>
+
 
