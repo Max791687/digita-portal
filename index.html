@@ -936,6 +936,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
               const merged = { ...cloudTask, status: localTask.status };
               if (Object.prototype.hasOwnProperty.call(localTask, 'progress')) merged.progress = localTask.progress;
               if (Object.prototype.hasOwnProperty.call(localTask, 'outputLink')) merged.outputLink = localTask.outputLink;
+              for (const field of ['pipelineStage','reviewSubmittedAt']) if (Object.prototype.hasOwnProperty.call(localTask, field)) merged[field] = localTask[field];
               if (cloudTask.category === 'SCRIPT WRITING' && ['shweta','vanita'].includes(currentUser.memberId)) { merged.scriptText = localTask.scriptText; if (localTask.scriptWorkspace !== undefined) merged.scriptWorkspace = localTask.scriptWorkspace; if (localTask.scriptReview !== undefined) merged.scriptReview = localTask.scriptReview; }
               return merged;
             });
@@ -1193,6 +1194,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       renderDashboard();
       if (typeof renderContentCalendar === 'function') renderContentCalendar();
       if (typeof renderWriterStudio === 'function') renderWriterStudio();
+      if (typeof renderProductionPipeline === 'function') renderProductionPipeline();
     }
 
     // --- CAROUSEL ---
@@ -1484,6 +1486,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       if (!t || (!isAdmin() && !isOwnTask(t))) return;
       if (!t) return;
       t.status = newStatus;
+      if (typeof syncTaskProductionStatus === 'function') syncTaskProductionStatus(t, newStatus);
       recordActivity('Task status changed', (t.title || 'Task') + ' → ' + newStatus.replace(/_/g, ' '));
       if (isAdmin() && newStatus === 'completed') {
         addNotification(`✓ Task completed: "${t.title}" by ${t.assignedTo}`);
@@ -1505,6 +1508,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     function saveOutputLink(id, link) {
       const t = tasks.find(x => x.id === id);
       if (t && (isAdmin() || isOwnTask(t))) {
+        if ((link || '').trim() !== (t.outputLink || '') && typeof syncProductionOutputChange === 'function') syncProductionOutputChange(t);
         t.outputLink = (link || '').trim();
         pushToCloud();
       }
@@ -1535,6 +1539,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       const t = tasks.find(x => x.id === id);
       if (t) {
         t.status = 'changes_required';
+        t.pipelineStage = 'revision';
         t.revisionNotes = notes;
         t.revisionBy = document.getElementById('changeRequestedByInput').value;
         t.revisionAt = new Date().toISOString();
@@ -2042,8 +2047,10 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
   </script>
   <script src="./content-calendar.js"></script>
   <script src="./writer-studio.js"></script>
+  <script src="./production-pipeline.js"></script>
 
 </body>
 </html>
+
 
 

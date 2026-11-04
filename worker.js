@@ -13,7 +13,7 @@ const ALLOWED_MEMBERS = {
   ashish: "Ashish",
   test: "Test"
 };
-const EDITABLE_MEMBER_FIELDS = ["status", "progress", "outputLink"];
+const EDITABLE_MEMBER_FIELDS = ["status", "progress", "outputLink", "pipelineStage", "reviewSubmittedAt"];
 const ALLOWED_STATUSES = ["pending", "in_progress", "changes_required", "completed"];
 
 function jsonResponse(data, status, origin) {
@@ -124,6 +124,25 @@ function validScriptWorkspace(w) {
     Object.keys(s).every(k=>["voiceover","visual","screen"].includes(k)) &&
     ["voiceover","visual","screen"].every(k=>typeof s[k] === "string" && s[k].length <= 2000));
 }
+const PRODUCTION_STAGES = ["script", "shoot", "production", "review", "revision", "approved"];
+function validReviewSubmission(task) {
+  if (task.category === "SCRIPT WRITING") return typeof task.scriptText === "string" && !!task.scriptText.trim();
+  try { const link=new URL(task.outputLink); return ["https:","http:"].includes(link.protocol); } catch (_) { return false; }
+}
+function validMemberPipelineUpdate(old, next) {
+  if (next.pipelineStage !== undefined && !PRODUCTION_STAGES.includes(next.pipelineStage)) return false;
+  if (old.pipelineStage !== next.pipelineStage) {
+    if (!["script", "shoot", "production", "review"].includes(next.pipelineStage)) return false;
+    if (next.pipelineStage === "review" && !validReviewSubmission(next)) return false;
+  }
+  if (old.reviewSubmittedAt !== next.reviewSubmittedAt) {
+    if (next.pipelineStage !== "review" || typeof next.reviewSubmittedAt !== "string" || next.reviewSubmittedAt.length > 32 || !Number.isFinite(Date.parse(next.reviewSubmittedAt))) return false;
+    if (!validReviewSubmission(next)) return false;
+  }
+  const materialChanged=old.outputLink !== next.outputLink || old.scriptText !== next.scriptText || JSON.stringify(old.scriptWorkspace) !== JSON.stringify(next.scriptWorkspace);
+  if (next.pipelineStage === "approved" && materialChanged) return false;
+  return true;
+}
 function isMemberTaskUpdateAllowed(previous, incoming, user) {
   if (!Array.isArray(previous) || !Array.isArray(incoming) || incoming.length < previous.length) return false;
   const previousById = new Map(previous.map(t => [String(t && t.id), t]));
@@ -146,12 +165,16 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
         typeof next.docLink !== "string" || next.docLink.length > 2048 ||
         next.status !== "pending" || next.outputLink !== "" ||
         !Number.isFinite(next.createdAt) || Object.prototype.hasOwnProperty.call(next, "progress")) return false;
+      if (next.scriptReview !== undefined && next.scriptReview !== "draft") return false;
+      if (next.pipelineStage !== undefined && !["script","shoot","production"].includes(next.pipelineStage)) return false;
+      if (["approvalAt","approvalBy","reviewSubmittedAt","revisionNotes","revisionAt","revisionBy"].some(k=>Object.hasOwn(next,k))) return false;
       continue;
     }
     if (normalizeName(old.assignedTo) !== normalizeName(user.displayName)) {
       if (JSON.stringify(old) !== JSON.stringify(next)) return false;
       continue;
     }
+    if (!validMemberPipelineUpdate(old, next)) return false;
     const writing = old.category === "SCRIPT WRITING" && ["shweta", "vanita"].includes(user.memberId);
     if (JSON.stringify(stripEditableFields(old, writing)) !== JSON.stringify(stripEditableFields(next, writing))) return false;
     if (writing) {
@@ -377,7 +400,7 @@ export default {
           if (!row) return jsonResponse({ error: "Member workspace is not initialized" }, 409, origin);
           const previous = JSON.parse(row.data);
           if (data.expectedRevision !== row.updated_at) return jsonResponse({ error: "Data conflict detected. Latest cloud data was preserved.", conflict: true }, 409, origin);
-          if (!isMemberTaskUpdateAllowed(previous.tasks, data.tasks, user)) return jsonResponse({ error: "Members may update only their own task status, progress and output link; assigned writers may also save or submit their writing scripts." }, 403, origin);
+          if (!isMemberTaskUpdateAllowed(previous.tasks, data.tasks, user)) return jsonResponse({ error: "Members may update only their own task status, progress, output link and production stage or submit it for review; assigned writers may also save or submit their writing scripts. Approval and feedback require admin access." }, 403, origin);
           const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
           const previousCalendar = Array.isArray(previous.contentCalendar) ? previous.contentCalendar : [];
           const incomingCalendar = Array.isArray(data.contentCalendar) ? data.contentCalendar : previousCalendar;
@@ -415,5 +438,6 @@ export default {
     return jsonResponse({ error: "Method not allowed" }, 405, origin);
   }
 };
+
 
 

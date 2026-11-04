@@ -140,7 +140,7 @@
       'RESEARCH / SOURCES',w.researchNotes].join('\n\n');
     const a=document.createElement('a'),url=URL.createObjectURL(new Blob([exported],{type:'text/plain;charset=utf-8'})); a.href=url;a.download='script.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
-  function snapshot(t) { return JSON.stringify([t.scriptText || '',t.scriptReview || 'draft',t.scriptFeedback || '',t.writerBrief || '',t.assignedTo,t.scriptWorkspace || null]); }
+  function snapshot(t) { return JSON.stringify([t.scriptText || '',t.scriptReview || 'draft',t.scriptFeedback || '',t.writerBrief || '',t.assignedTo,t.scriptWorkspace || null,t.pipelineStage || null,t.revisionNotes || '',t.approvalAt || '']); }
   function edit(id) {
     const t = tasks.find(t => String(t.id) === id); if (!t || !writing(t) || !currentUser) return;
     resetAI();
@@ -178,6 +178,7 @@
     remember(); busy=true; ['wsSave','wsSubmit','wsApprove','wsRevision'].forEach(id=>$(id).disabled=true);
     if (!$('wsText').value.trim() && text) $('wsText').value=text;
     t.scriptText=text; t.scriptReview=review; t.scriptWorkspace=readWorkspace();
+    if (typeof syncWriterProductionReview === 'function') syncWriterProductionReview(t,review);
     if (isAdmin()) t.scriptFeedback=$('wsFeedback').value.trim();
     if (review==='approved') { t.status='completed'; t.progress=100; }
     else if (review==='changes_required') t.status='changes_required';
@@ -243,5 +244,6 @@
   const oldLogout=window.logoutUser; window.logoutUser=function(...args){if(busy)return; if(dirty&&!confirm('Log out with unsynced script work? Download a copy first if needed.'))return;resetAI();modal.classList.add('hidden');opened=null;dirty=false;hideStudio();root.replaceChildren();return oldLogout.apply(this,args);};
   function openStudio() { if(!currentUser)return; ['tasksViewContainer','shootsViewContainer','contentCalendarViewContainer','smartDashboard','shootsTopAction'].forEach(id=>$(id)?.classList.add('hidden')); ['tabTasksBtn','tabShootsBtn','tabCalendarBtn'].forEach(id=>$(id).className=inactive); btn.className=inactive+' bg-orange-500/10 text-orange-300'; root.classList.remove('hidden'); renderWriterStudio(); }
 })();
+
 
 
