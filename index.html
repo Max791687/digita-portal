@@ -845,6 +845,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
         }
         cloudRevision = saved.revision;
         setSyncStatus("Live Synced with Team", "emerald");
+        return true;
       } catch (e) {
         console.error("Cloud save failed:", e);
         setSyncStatus("Cloud save failed — local backup kept", "slate");
@@ -935,6 +936,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
               const merged = { ...cloudTask, status: localTask.status };
               if (Object.prototype.hasOwnProperty.call(localTask, 'progress')) merged.progress = localTask.progress;
               if (Object.prototype.hasOwnProperty.call(localTask, 'outputLink')) merged.outputLink = localTask.outputLink;
+              if (cloudTask.category === 'SCRIPT WRITING' && ['shweta','vanita'].includes(currentUser.memberId)) { merged.scriptText = localTask.scriptText; if (localTask.scriptReview !== undefined) merged.scriptReview = localTask.scriptReview; }
               return merged;
             });
             memberLocalTasks.forEach(localTask => {
@@ -1190,6 +1192,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       updateCounts();
       renderDashboard();
       if (typeof renderContentCalendar === 'function') renderContentCalendar();
+      if (typeof renderWriterStudio === 'function') renderWriterStudio();
     }
 
     // --- CAROUSEL ---
@@ -2038,6 +2041,8 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
     }
   </script>
   <script src="./content-calendar.js"></script>
+  <script src="./writer-studio.js"></script>
 
 </body>
 </html>
+

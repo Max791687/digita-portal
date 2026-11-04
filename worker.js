@@ -104,9 +104,10 @@ async function readJson(request) {
 function normalizeName(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
-function stripEditableFields(task) {
+function stripEditableFields(task, writing = false) {
   const copy = { ...task };
   for (const field of EDITABLE_MEMBER_FIELDS) delete copy[field];
+  if (writing) { delete copy.scriptText; delete copy.scriptReview; }
   return copy;
 }
 function isMemberTaskUpdateAllowed(previous, incoming, user) {
@@ -137,7 +138,14 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
       if (JSON.stringify(old) !== JSON.stringify(next)) return false;
       continue;
     }
-    if (JSON.stringify(stripEditableFields(old)) !== JSON.stringify(stripEditableFields(next))) return false;
+    const writing = old.category === "SCRIPT WRITING" && ["shweta", "vanita"].includes(user.memberId);
+    if (JSON.stringify(stripEditableFields(old, writing)) !== JSON.stringify(stripEditableFields(next, writing))) return false;
+    if (writing) {
+      if (typeof next.scriptText !== "string" || next.scriptText.length > 20000) return false;
+      if (next.scriptReview !== old.scriptReview && !["draft", "submitted"].includes(next.scriptReview)) return false;
+      if (next.scriptText !== old.scriptText && !["draft", "submitted"].includes(next.scriptReview)) return false;
+      if (next.scriptReview === "submitted" && !next.scriptText.trim()) return false;
+    }
     if (!ALLOWED_STATUSES.includes(next.status)) return false;
     if (next.progress !== undefined && (!Number.isInteger(next.progress) || next.progress < 0 || next.progress > 100)) return false;
     if (next.outputLink !== undefined && (typeof next.outputLink !== "string" || next.outputLink.length > 2048)) return false;
@@ -298,7 +306,7 @@ export default {
           if (!row) return jsonResponse({ error: "Member workspace is not initialized" }, 409, origin);
           const previous = JSON.parse(row.data);
           if (data.expectedRevision !== row.updated_at) return jsonResponse({ error: "Data conflict detected. Latest cloud data was preserved.", conflict: true }, 409, origin);
-          if (!isMemberTaskUpdateAllowed(previous.tasks, data.tasks, user)) return jsonResponse({ error: "Members may update only their own task status, progress and output link." }, 403, origin);
+          if (!isMemberTaskUpdateAllowed(previous.tasks, data.tasks, user)) return jsonResponse({ error: "Members may update only their own task status, progress and output link; assigned writers may also save or submit their writing scripts." }, 403, origin);
           const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
           const previousCalendar = Array.isArray(previous.contentCalendar) ? previous.contentCalendar : [];
           const incomingCalendar = Array.isArray(data.contentCalendar) ? data.contentCalendar : previousCalendar;
