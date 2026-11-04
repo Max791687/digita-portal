@@ -184,7 +184,7 @@ function syncTaskProductionStatus(task, status) {
     const query=$('ppSearch').value.trim().toLowerCase(),member=$('ppMember').value;
     const all=tasks.filter(t=>(member==='all'||String(t.assignedTo||'').toLowerCase()===member.toLowerCase())&&(!query||[t.title,t.category,t.assignedTo].join(' ').toLowerCase().includes(query)));
     $('ppHeading').textContent=mode==='pipeline'?'Production Pipeline':'Review Board';
-    $('ppDescription').textContent=mode==='pipeline'?'See the whole team's progress from script to approved output. Filter by a member when needed; only the assigned member or Admin can update work.':'Review submitted output and scripts, send clear revisions and approve completed work. Only Admin can approve.';
+    $('ppDescription').textContent=mode==='pipeline'?'See progress across the whole team from script to approved output. Filter by a member when needed; only the assigned member or Admin can update work.':'Review submitted output and scripts, send clear revisions and approve completed work. Only Admin can approve.';
     $('ppStats').replaceChildren();
     PRODUCTION_PIPELINE_STAGES.forEach(([id,text,icon])=>{const box=document.createElement('div');box.className='rounded-xl border border-[#29364d] bg-[#0c1220] p-3';const name=document.createElement('p');name.className='text-xs text-slate-400';name.textContent=icon+' '+text;const n=document.createElement('strong');n.className='text-xl block mt-1';n.textContent=all.filter(t=>getProductionStage(t)===id).length;box.append(name,n);$('ppStats').append(box);});
     $('ppReviewFilters').replaceChildren();
