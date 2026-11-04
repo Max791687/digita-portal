@@ -22,6 +22,7 @@
     <p id="wsMessage" role="status" class="text-sm text-amber-300 mt-3"></p></div>`;
   document.body.appendChild(modal);
   let opened = null, baseline = '', dirty = false, busy = false;
+  const pendingScripts = new Set();
   const $ = id => document.getElementById(id);
   const writing = t => t.category === 'SCRIPT WRITING';
   const canEdit = t => isAdmin() || (isOwnTask(t) && ['shweta','vanita'].includes(currentUser?.memberId));
@@ -60,6 +61,11 @@
     if (['approved','changes_required'].includes(review) && !isAdmin()) return;
     if (snapshot(t)!==baseline) return message('This task changed while you were writing. Download your text, close and reopen the task to review the latest version.');
     if (!cloudReady || cloudConflict || isCloudUpdating || isCloudPulling || cloudSavePending) return message('Wait for cloud sync to finish. Resolve any sync conflict before saving. Your browser draft is kept.');
+    if (pendingScripts.has(opened)) {
+      const registered = await pushToCloud();
+      if (!registered) return message('Your new script is not synced yet. Check the cloud connection and try again.');
+      pendingScripts.delete(opened);
+    }
     const text=$('wsText').value;
     if (text.length>20000) return message('Maximum script length is 20,000 characters.');
     if (['submitted','approved'].includes(review) && !text.trim()) return message('Write the script before submitting or approving.');
@@ -79,7 +85,29 @@
   $('wsSave').onclick=()=>save('draft'); $('wsSubmit').onclick=()=>save('submitted'); $('wsApprove').onclick=()=>save('approved'); $('wsRevision').onclick=()=>save('changes_required');
   window.renderWriterStudio = function () {
     const list=tasks.filter(t=>writing(t) && (isAdmin() || isOwnTask(t)));
-    if (!root.firstChild) root.innerHTML=`<div class="rounded-2xl border border-[#29364d] bg-[#111827] p-5"><p class="text-orange-300 text-xs uppercase tracking-widest">Writing workspace</p><h2 class="text-2xl font-bold mt-1">Writer Studio</h2><p class="text-sm text-slate-400 mt-2">Assigned briefs → Script drafts → Admin review → Approval</p><div id="wsAssignment" class="my-5"></div><div id="wsTaskList" class="grid md:grid-cols-2 gap-3"></div></div>`;
+    if (!root.firstChild) root.innerHTML=`<div class="rounded-2xl border border-[#29364d] bg-[#111827] p-5"><p class="text-orange-300 text-xs uppercase tracking-widest">Writing workspace</p><h2 class="text-2xl font-bold mt-1">Writer Studio</h2><p class="text-sm text-slate-400 mt-2">Write your own scripts or work on assigned briefs → Save drafts → Submit for review</p><div id="wsStart" class="my-5"></div><div id="wsAssignment" class="my-5"></div><div id="wsTaskList" class="grid md:grid-cols-2 gap-3"></div></div>`;
+    const canStart = !!currentUser && (isAdmin() || ['shweta','vanita'].includes(currentUser.memberId));
+    if (!canStart) $('wsStart').replaceChildren();
+    if (canStart && !$('wsStartForm')) {
+      $('wsStart').innerHTML=`<form id="wsStartForm" class="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-4"><h3 class="text-lg font-bold">✍ New Script — Khud likhna shuru karo</h3><p class="text-sm text-slate-400 mt-1 mb-3">No assignment needed. Give your script a title, write here, save drafts and submit for review.</p><label class="block text-sm">Script title<input id="wsNewTitle" required maxlength="240" class="${inputClass}" placeholder="e.g. Product launch Reel — Hindi script"></label><button id="wsStartButton" class="${buttonClass} mt-3">+ Start Writing</button><p id="wsStartMessage" role="status" class="text-xs text-amber-300 mt-2"></p></form>`;
+      $('wsStartForm').onsubmit=async e=>{
+        e.preventDefault();
+        if (!currentUser || (!isAdmin() && !['shweta','vanita'].includes(currentUser.memberId))) return;
+        if (!cloudReady || cloudConflict || isCloudUpdating || isCloudPulling || cloudSavePending) { $('wsStartMessage').textContent='Wait for cloud sync, then start your script.'; return; }
+        const title=$('wsNewTitle').value.trim(); if (!title) return;
+        const owner=currentUser.memberId;
+        let now=Date.now(); while(tasks.some(t=>String(t.id)==='task_'+now)) now++;
+        const task={id:'task_'+now,title,category:'SCRIPT WRITING',assignedTo:currentUser.displayName,assignedBy:currentUser.displayName,assignedDate:getDashboardLocalDate(),dueDate:'',scriptText:'',scriptReview:'draft',docLink:'',outputLink:'',status:'pending',createdAt:now};
+        tasks.unshift(task); pendingScripts.add(task.id); $('wsStartButton').disabled=true;
+        try {
+          const ok=await pushToCloud();
+          if (owner!==currentUser?.memberId) return;
+          if (ok) pendingScripts.delete(task.id);
+          e.target.reset(); renderAll(); edit(task.id); $('wsText').focus();
+          if (!ok) message('New script kept locally. Wait for cloud sync before saving your writing. You can write and download a copy now.');
+        } finally { const start=$('wsStartButton'); if(start) start.disabled=false; }
+      };
+    }
     if (!isAdmin()) $('wsAssignment').replaceChildren();
     if (isAdmin() && !$('wsAssignForm')) {
       $('wsAssignment').innerHTML=`<form id="wsAssignForm" class="grid sm:grid-cols-2 gap-3 rounded-xl bg-[#0c1220] p-4"><h3 class="sm:col-span-2 font-bold">Assign a writing task</h3><label class="text-sm">Title *<input name="title" required maxlength="240" class="${inputClass}"></label><label class="text-sm">Writer<select name="writer" class="${inputClass}"><option>Shweta</option><option>Vanita</option></select></label><label class="text-sm">Deadline<input name="due" type="date" required class="${inputClass}"></label><label class="text-sm">Brief / references<textarea name="brief" maxlength="3000" rows="3" class="${inputClass}" placeholder="Topic, audience, duration, language, key points and references"></textarea></label><button class="${buttonClass}">Assign task</button><p id="wsAssignMessage" role="status" class="text-xs text-amber-300"></p></form>`;
@@ -93,13 +121,13 @@
       };
     }
     const box=$('wsTaskList'); box.replaceChildren();
-    if (!list.length) { box.innerHTML='<p class="text-sm text-slate-400 py-5">No writing tasks yet. Admin can assign a brief to Shweta or Vanita here.</p>'; return; }
+    if (!list.length) { box.innerHTML='<p class="text-sm text-slate-400 py-5">No scripts yet. Use New Script above to start writing, or open a writing task assigned by Admin.</p>'; return; }
     list.forEach(t=>{
       const card=document.createElement('article'); card.className='rounded-xl border border-[#29364d] bg-[#0c1220] p-4';
       const title=document.createElement('h3'); title.className='font-bold'; title.textContent=t.title;
       const detail=document.createElement('p'); detail.className='text-xs text-slate-400 my-2'; detail.textContent=t.assignedTo+' · Due '+(t.dueDate||'Not set')+' · '+(t.scriptReview||'draft');
       const brief=document.createElement('p'); brief.className='text-sm text-slate-300 whitespace-pre-wrap mb-3'; brief.textContent=(t.writerBrief||'').slice(0,240);
-      const open=document.createElement('button'); open.className=buttonClass; open.textContent=isAdmin()?'Open / Review script':'Write script'; open.onclick=()=>edit(String(t.id));
+      const open=document.createElement('button'); open.className=buttonClass; open.textContent=isAdmin()?'Write / Review script':'Continue writing'; open.onclick=()=>edit(String(t.id));
       card.append(title,detail,brief,open); box.append(card);
     });
   };
