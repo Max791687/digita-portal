@@ -1195,6 +1195,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       if (typeof renderContentCalendar === 'function') renderContentCalendar();
       if (typeof renderWriterStudio === 'function') renderWriterStudio();
       if (typeof renderProductionPipeline === 'function') renderProductionPipeline();
+      if (typeof renderMyWorkspace === 'function') renderMyWorkspace();
     }
 
     // --- CAROUSEL ---
@@ -2048,9 +2049,11 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
   <script src="./content-calendar.js"></script>
   <script src="./writer-studio.js"></script>
   <script src="./production-pipeline.js"></script>
+  <script src="./my-workspace.js"></script>
 
 </body>
 </html>
+
 
 
 

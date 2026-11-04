@@ -158,6 +158,7 @@
     try { if (localStorage.getItem(draftKey())) message('A browser draft is available. Recover it if needed.'); } catch (_) {}
     modal.classList.remove('hidden');
   }
+  window.openWriterScript = id => edit(String(id));
   async function save(review) {
     if (busy || !opened) return;
     const t=tasks.find(t=>String(t.id)===opened);
@@ -244,6 +245,7 @@
   const oldLogout=window.logoutUser; window.logoutUser=function(...args){if(busy)return; if(dirty&&!confirm('Log out with unsynced script work? Download a copy first if needed.'))return;resetAI();modal.classList.add('hidden');opened=null;dirty=false;hideStudio();root.replaceChildren();return oldLogout.apply(this,args);};
   function openStudio() { if(!currentUser)return; ['tasksViewContainer','shootsViewContainer','contentCalendarViewContainer','smartDashboard','shootsTopAction'].forEach(id=>$(id)?.classList.add('hidden')); ['tabTasksBtn','tabShootsBtn','tabCalendarBtn'].forEach(id=>$(id).className=inactive); btn.className=inactive+' bg-orange-500/10 text-orange-300'; root.classList.remove('hidden'); renderWriterStudio(); }
 })();
+
 
 
 

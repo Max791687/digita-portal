@@ -124,6 +124,7 @@ function syncTaskProductionStatus(task, status) {
     }catch(_){}
     modal.classList.remove('hidden');
   }
+  window.openProductionTask = id => openTask(String(id));
   async function save(action) {
     if(saving||!opened)return;
     const t=tasks.find(t=>String(t.id)===opened);
@@ -208,3 +209,4 @@ function syncTaskProductionStatus(task, status) {
   $('tabWritersBtn').addEventListener('click',hide);
   const logout=window.logoutUser;window.logoutUser=function(...args){const value=logout.apply(this,args);if(!currentUser){hide();modal.classList.add('hidden');opened=null;dirty=false;sessionKey='';}return value;};
 })();
+
