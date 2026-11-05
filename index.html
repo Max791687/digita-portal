@@ -46,9 +46,67 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(1.2); }
     }
-  </style>
+  
+.member-mode #toolsListContainer button[onclick*="deleteTool"] { display: none !important; }
+</style>
 </head>
 <body class="min-h-screen custom-scrollbar pb-16">
+  <div id="authOverlay" class="fixed inset-0 z-[100] bg-[#070b13] flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-3xl border border-[#1f293d] bg-[#111827] p-6 shadow-2xl">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white text-2xl mb-4"><i class="ph-bold ph-lock-key"></i></div>
+      <h2 class="text-xl font-black text-white">Digital Department Login</h2>
+      <p class="text-xs text-slate-400 mt-1 mb-5">Sign in with your individual team account.</p>
+      <div id="loginPanel" class="space-y-3">
+        <label class="block text-xs font-bold text-slate-300">Your account</label>
+        <select id="loginMemberId" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white">
+          <option value="pavan">Pavan (Admin)</option><option value="vijay">Vijay</option><option value="tushar">Tushar</option><option value="mirtunjay">Mirtunjay</option><option value="shweta">Shweta</option><option value="vanita">Vanita</option><option value="manoj">Manoj</option><option value="ashish">Ashish</option><option value="test">Test</option>
+        </select>
+        <label class="block text-xs font-bold text-slate-300">Personal PIN</label>
+        <input id="loginPin" type="password" autocomplete="current-password" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Enter your PIN">
+        <button onclick="loginUser()" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold">Login</button>
+        <button onclick="showFirstAdminSetup()" class="w-full py-2 text-xs text-slate-400 hover:text-white">First-time Admin setup</button>
+      </div>
+      <div id="setupPanel" class="hidden space-y-3">
+        <p class="text-xs text-amber-300">One-time setup for Pavan's Admin account. Use the BOOTSTRAP_SECRET configured in Cloudflare.</p>
+        <label class="block text-xs font-bold text-slate-300">Bootstrap secret</label>
+        <input id="bootstrapSecretInput" type="password" autocomplete="off" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Cloudflare BOOTSTRAP_SECRET">
+        <label class="block text-xs font-bold text-slate-300">Create Admin PIN (minimum 6 characters)</label>
+        <input id="setupAdminPin" type="password" autocomplete="new-password" class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-3 text-white" placeholder="Create your personal PIN">
+        <button onclick="setupFirstAdmin()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Create Admin account</button>
+        <button onclick="hideFirstAdminSetup()" class="w-full py-2 text-xs text-slate-400">Back to login</button>
+      </div>
+      <p id="authMessage" class="text-xs text-rose-300 mt-4 min-h-5"></p>
+    </div>
+  </div>
+
+  <!-- TEAM MEMBERS MANAGEMENT -->
+  <div id="membersModal" class="hidden fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="max-w-2xl mx-auto my-6 rounded-3xl border border-[#29364d] bg-[#111827] shadow-2xl">
+      <div class="flex items-center justify-between gap-3 p-5 border-b border-[#1f293d]">
+        <div><h2 class="text-lg font-black text-white">Team Members</h2><p class="text-xs text-slate-400 mt-1">Manage individual team login accounts</p></div>
+        <button onclick="closeMembersModal()" class="w-9 h-9 rounded-xl bg-[#1f293d] text-slate-300 hover:text-white" aria-label="Close">✕</button>
+      </div>
+      <div class="p-5 space-y-5">
+        <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-white">Account list</h3><button onclick="loadTeamAccounts()" class="px-3 py-2 rounded-lg bg-[#1f293d] text-xs text-slate-200">↻ Refresh</button></div>
+        <div id="teamAccountsList" class="space-y-2"><p class="text-xs text-slate-400">Loading accounts…</p></div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <form id="createMemberForm" onsubmit="createTeamAccount(event)" class="rounded-2xl border border-[#1f293d] bg-[#0c1220] p-4 space-y-3">
+            <h3 class="font-bold text-sm text-emerald-300">Create account</h3>
+            <label class="block text-xs text-slate-300">Team member<select id="createMemberId" required class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"><option value="">Select member</option><option value="vijay">Vijay</option><option value="tushar">Tushar</option><option value="mirtunjay">Mirtunjay</option><option value="shweta">Shweta</option><option value="vanita">Vanita</option><option value="manoj">Manoj</option><option value="ashish">Ashish</option><option value="test">Test</option></select></label>
+            <label class="block text-xs text-slate-300">Personal PIN<input id="createMemberPin" type="password" minlength="6" maxlength="128" autocomplete="new-password" required placeholder="Minimum 6 characters" class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"></label>
+            <button type="submit" class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 p-2.5 text-xs font-bold text-white">Create account</button>
+          </form>
+          <form id="resetMemberForm" onsubmit="resetTeamMemberPin(event)" class="rounded-2xl border border-[#1f293d] bg-[#0c1220] p-4 space-y-3">
+            <h3 class="font-bold text-sm text-amber-300">Reset member PIN</h3>
+            <label class="block text-xs text-slate-300">Existing account<select id="resetMemberId" required class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"><option value="">Select account</option></select></label>
+            <label class="block text-xs text-slate-300">New personal PIN<input id="resetMemberPin" type="password" minlength="6" maxlength="128" autocomplete="new-password" required placeholder="Minimum 6 characters" class="mt-1 w-full rounded-lg bg-[#111827] border border-[#29364d] p-2.5 text-white"></label>
+            <button type="submit" class="w-full rounded-lg bg-amber-600 hover:bg-amber-700 p-2.5 text-xs font-bold text-white">Reset PIN</button>
+          </form>
+        </div>
+        <p id="membersMessage" class="text-xs text-slate-400 min-h-4" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
 
   <!-- TOP APP BANNER (BROADCAST) -->
   <div id="liveAlertBanner" class="hidden bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 text-white px-4 py-2.5 shadow-lg flex items-center justify-between text-xs sm:text-sm font-medium sticky top-0 z-50">
@@ -61,6 +119,20 @@
       <button onclick="forceCloudSync()" class="px-3 py-1 bg-white text-orange-700 font-bold rounded shadow hover:bg-slate-100 text-xs flex items-center gap-1">
         <i class="ph-bold ph-arrows-clockwise"></i> Sync Now
       </button>
+    </div>
+  </div>
+
+  <!-- NEW TOOL ANNOUNCEMENT POPUP -->
+  <div id="newToolAnnouncementPopup" class="hidden fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="newToolAnnouncementTitle">
+    <div class="w-full max-w-sm rounded-3xl border border-indigo-400/30 bg-[#111827] p-6 text-center shadow-2xl">
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-300">
+        <i class="ph-bold ph-calendar-check text-4xl"></i>
+      </div>
+      <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-indigo-300">New Tool Added</p>
+      <h2 id="newToolAnnouncementTitle" class="mt-2 text-2xl font-black text-white">Content Calendar</h2>
+      <p class="mt-2 text-sm leading-relaxed text-slate-400">Plan and track Reels, Shorts, YouTube videos and posts in one shared team calendar.</p>
+      <button type="button" onclick="openAnnouncedContentCalendar()" class="mt-5 w-full rounded-xl bg-indigo-500 px-4 py-3 font-bold text-white transition hover:bg-indigo-600">Explore Content Calendar</button>
+      <button type="button" onclick="dismissNewToolAnnouncement()" class="mt-3 text-xs font-semibold text-slate-400 hover:text-white">Maybe later</button>
     </div>
   </div>
 
@@ -101,6 +173,7 @@
           <span id="toolCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-sky-500 text-white ml-0.5">0</span>
         </button>
 
+        <button id="manageMembersButton" onclick="openMembersModal()" class="hidden px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold">Members</button>
         <button onclick="openAnnounceModal()" class="px-3 py-2 rounded-xl bg-[#161f33] hover:bg-[#1f293d] border border-[#1f293d] text-amber-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
           <i class="ph-bold ph-megaphone text-amber-400"></i>
           <span>Announce</span>
@@ -147,6 +220,7 @@
           <i class="ph-bold ph-video-camera"></i>
           <span>Shoots Tracker ( <span id="tabShootsCount">0</span> )</span>
         </button>
+        <button id="tabCalendarBtn" onclick="openContentCalendar()" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition"><i class="ph-bold ph-calendar-check"></i><span>Content Calendar</span></button>
       </div>
 
       <div id="shootsTopAction" class="hidden">
@@ -268,6 +342,8 @@
       </div>
     </div>
 
+    <section id="contentCalendarViewContainer" class="hidden"></section>
+
   </main>
 
   <!-- TEAM CALENDAR MODAL -->
@@ -335,7 +411,7 @@
               </optgroup>
             </select>
           </div>
-          <div>
+          <div id="taskAssignerField">
             <label class="block font-semibold text-slate-300 mb-1">Assigned By (Who gave the task?) *</label>
             <select id="taskAssignerInput" required class="w-full bg-[#0c1220] border border-[#1f293d] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500">
               <option value="Vanita (Script Writer)">Vanita (Script Writer)</option>
@@ -433,7 +509,7 @@
         <button onclick="closeToolsModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-lg"></i></button>
       </div>
 
-      <form onsubmit="handleToolSubmit(event)" class="bg-[#0c1220] p-3 rounded-xl border border-[#1f293d] mb-4 space-y-2.5 text-xs">
+      <form id="toolsAddForm" onsubmit="handleToolSubmit(event)" class="bg-[#0c1220] p-3 rounded-xl border border-[#1f293d] mb-4 space-y-2.5 text-xs">
         <span class="font-bold text-slate-300 block">Add New Tool or Resource Link:</span>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input type="text" id="toolNameInput" required placeholder="Tool Name (e.g. ElevenLabs, CapCut)" class="bg-[#111827] border border-[#1f293d] rounded-lg px-2.5 py-1.5 text-white">
@@ -545,42 +621,120 @@
     }
 
     // High Reliability Multi-Device Cloud Sync Node
-    const CLOUD_API = "https://digital-team-sync.max791687.workers.dev/workspace";
+    const CLOUD_API = "https://digital-team-sync-staging.max791687.workers.dev/workspace";
 
-// Shared Team PIN is kept only for this browser tab session, never in public source.
-let teamPin = "";
-let pinPrompted = false;
+let authToken = "";
+let currentUser = null;
 try {
-  teamPin = sessionStorage.getItem("digital_team_pin") || "";
+  authToken = sessionStorage.getItem("digital_auth_token") || "";
+  const savedUser = sessionStorage.getItem("digital_auth_user");
+  currentUser = savedUser ? JSON.parse(savedUser) : null;
 } catch (e) {}
 
-function getTeamPin(forcePrompt = false) {
-  if (teamPin) return teamPin;
-  if (pinPrompted && !forcePrompt) return "";
-  pinPrompted = true;
-
-  const entered = window.prompt("Enter the shared Digital Team PIN:");
-  if (!entered || !entered.trim()) return "";
-
-  teamPin = entered.trim();
-  try {
-    sessionStorage.setItem("digital_team_pin", teamPin);
-  } catch (e) {}
-  return teamPin;
+function isAdmin() { return !!currentUser && currentUser.role === "admin"; }
+function isOwnTask(task) {
+  return !!currentUser && !!task && String(task.assignedTo || "").trim().toLowerCase() === String(currentUser.displayName || "").trim().toLowerCase();
 }
-
-function clearTeamPin() {
-  teamPin = "";
-  try {
-    sessionStorage.removeItem("digital_team_pin");
-  } catch (e) {}
+function authHeaders(json = false) {
+  const headers = { "Authorization": "Bearer " + authToken };
+  if (json) headers["Content-Type"] = "application/json";
+  return headers;
 }
+function showAuthMessage(message, good = false) {
+  const el = document.getElementById("authMessage");
+  if (el) { el.textContent = message || ""; el.className = "text-xs mt-4 min-h-5 " + (good ? "text-emerald-300" : "text-rose-300"); }
+}
+function showFirstAdminSetup() {
+  document.getElementById("loginPanel").classList.add("hidden");
+  document.getElementById("setupPanel").classList.remove("hidden");
+  showAuthMessage("");
+}
+function hideFirstAdminSetup() {
+  document.getElementById("setupPanel").classList.add("hidden");
+  document.getElementById("loginPanel").classList.remove("hidden");
+  showAuthMessage("");
+}
+function saveAuthSession(data) {
+  authToken = data.token;
+  currentUser = data.user;
+  try {
+    sessionStorage.setItem("digital_auth_token", authToken);
+    sessionStorage.setItem("digital_auth_user", JSON.stringify(currentUser));
+  } catch (e) {}
+  document.getElementById("authOverlay").classList.add("hidden");
+  applyRoleUI();
+  pullFromCloud(false);
+  startAutoSync();
+}
+async function loginUser() {
+  const memberId = document.getElementById("loginMemberId").value;
+  const pin = document.getElementById("loginPin").value;
+  if (!pin) return showAuthMessage("Please enter your personal PIN.");
+  try {
+    const res = await fetch(CLOUD_API.replace("/workspace", "/auth/login"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId, pin })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showAuthMessage(data.error || "Login failed.");
+    saveAuthSession(data);
+  } catch (e) { showAuthMessage("Could not connect. Please try again."); }
+}
+async function setupFirstAdmin() {
+  const bootstrapSecret = document.getElementById("bootstrapSecretInput").value;
+  const pin = document.getElementById("setupAdminPin").value;
+  if (!bootstrapSecret || !pin) return showAuthMessage("Enter both values.");
+  try {
+    const res = await fetch(CLOUD_API.replace("/workspace", "/auth/setup"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bootstrapSecret, pin })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showAuthMessage(data.error || "Admin setup failed.");
+    document.getElementById("bootstrapSecretInput").value = "";
+    document.getElementById("setupAdminPin").value = "";
+    saveAuthSession(data);
+  } catch (e) { showAuthMessage("Could not connect. Please try again."); }
+}
+function logoutUser() {
+  authToken = ""; currentUser = null; cloudReady = false; cloudRevision = null;
+  try { sessionStorage.removeItem("digital_auth_token"); sessionStorage.removeItem("digital_auth_user"); } catch (e) {}
+  document.getElementById("authOverlay").classList.remove("hidden");
+  document.getElementById("loginPin").value = "";
+  stopAutoSync();
+}
+function applyRoleUI() {
+  const headerActions = document.querySelector("header .max-w-7xl > div:last-child");
+  if (headerActions && !document.getElementById("accountControls")) {
+    const controls = document.createElement("div");
+    controls.id = "accountControls";
+    controls.className = "flex items-center gap-2";
+    controls.innerHTML = '<span class="text-[11px] text-slate-300 font-semibold">' + escapeHtml(currentUser.displayName) + (isAdmin() ? ' · Admin' : ' · Member') + '</span><button onclick="logoutUser()" class="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold">Logout</button>';
+    headerActions.appendChild(controls);
+  }
+  document.body.classList.toggle("member-mode", !isAdmin());
+  const membersButton = document.getElementById("manageMembersButton");
+  if (membersButton) membersButton.classList.toggle("hidden", !isAdmin());
+  if (!isAdmin()) {
+    activeMemberFilter = "all";
+    document.querySelectorAll('button[onclick*="openAnnounceModal"],button[onclick*="openShootModal"],button[onclick*="exportPortalBackup"],button[onclick*="backupImportInput"],button[onclick*="openCalendar"],button[onclick*="openActivityHistory"],button[onclick*="openGlobalSearch"]').forEach(el => el.classList.add("hidden"));
+  }
+  renderMemberCarousel();
+  renderAll();
+}
+let autoSyncTimer = null;
+function startAutoSync() {
+  stopAutoSync();
+  autoSyncTimer = setInterval(() => { if (authToken) pullFromCloud(true); }, 10000);
+}
+function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoSyncTimer = null; }
 
     let tasks = [];
     let shoots = [];
     let tools = [];
     let notifications = [];
     let activity = [];
+    let contentCalendar = [];
     let activeMemberFilter = 'all';
     let activeStatusFilter = 'all';
     let searchQuery = '';
@@ -593,7 +747,7 @@ function clearTeamPin() {
     let cloudSavePending = false;
     let cloudLocalEditPendingInitial = false;
     let cloudLocalEditDuringPull = false;
-    // First successful cloud pull establishes a baseline; only later additions trigger popups.
+    // Track the first successful cloud tool load before announcing newly added tools.
     let cloudToolsInitialized = false;
 
     function playChime() {
@@ -638,12 +792,7 @@ function clearTeamPin() {
       isCloudUpdating = true;
       setSyncStatus("Saving team updates...", "amber");
 
-      const pin = getTeamPin();
-      if (!pin) {
-        setSyncStatus("Team PIN needed — click Sync to retry", "slate");
-        isCloudUpdating = false;
-        return;
-      }
+      if (!authToken || !currentUser) { isCloudUpdating = false; return; }
 
       const payload = {
         tasks,
@@ -651,6 +800,7 @@ function clearTeamPin() {
         tools,
         notifications,
         activity,
+        contentCalendar,
         expectedRevision: cloudRevision,
         updatedAt: Date.now()
       };
@@ -662,20 +812,20 @@ function clearTeamPin() {
         localStorage.setItem('dd_tools_v2', JSON.stringify(tools));
         localStorage.setItem('dd_notifs_v2', JSON.stringify(notifications));
         localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
+        localStorage.setItem('dd_content_calendar_v1', JSON.stringify(contentCalendar));
 
         const res = await fetch(CLOUD_API, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + pin
+            'Authorization': 'Bearer ' + authToken
           },
           body: JSON.stringify(payload)
         });
 
         if (res.status === 401) {
-          clearTeamPin();
-          pinPrompted = true;
-          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
+          logoutUser();
+          setSyncStatus("Session expired — please log in again", "slate");
           return;
         }
         if (res.status === 409) {
@@ -695,6 +845,7 @@ function clearTeamPin() {
         }
         cloudRevision = saved.revision;
         setSyncStatus("Live Synced with Team", "emerald");
+        return true;
       } catch (e) {
         console.error("Cloud save failed:", e);
         setSyncStatus("Cloud save failed — local backup kept", "slate");
@@ -708,14 +859,8 @@ function clearTeamPin() {
     }
 
     // --- PULL DATA FROM CLOUDFLARE WORKER ---
-    async function pullFromCloud(silent = true, askForPin = false) {
-      if (isCloudUpdating || isCloudPulling || cloudConflict) return;
-      const pin = getTeamPin(askForPin);
-
-      if (!pin) {
-        if (!silent) setSyncStatus("Team PIN needed — click Sync", "slate");
-        return;
-      }
+    async function pullFromCloud(silent = true) {
+      if (!authToken || !currentUser || isCloudUpdating || isCloudPulling || cloudConflict) return;
 
       if (!silent) setSyncStatus("Checking team updates...", "amber");
 
@@ -724,15 +869,14 @@ function clearTeamPin() {
         const res = await fetch(CLOUD_API + '?t=' + Date.now(), {
           method: 'GET',
           headers: {
-            'Authorization': 'Bearer ' + pin
+            'Authorization': 'Bearer ' + authToken
           },
           cache: 'no-store'
         });
 
         if (res.status === 401) {
-          clearTeamPin();
-          pinPrompted = true;
-          setSyncStatus("Invalid Team PIN — click Sync to retry", "slate");
+          logoutUser();
+          setSyncStatus("Session expired — please log in again", "slate");
           return;
         }
         if (!res.ok) {
@@ -748,18 +892,26 @@ function clearTeamPin() {
           !Array.isArray(data.tools) ||
           !Array.isArray(data.notifications) ||
           !Array.isArray(data.activity) ||
+          (data.contentCalendar !== undefined && !Array.isArray(data.contentCalendar)) ||
           !(data._revision === null || (typeof data._revision === 'string' && data._revision.length > 0))
         ) {
           throw new Error("Cloud workspace response is incomplete or invalid");
         }
         cloudRevision = data._revision;
         cloudReady = true;
-        if (cloudLocalEditPendingInitial || cloudLocalEditDuringPull) {
+        const hadLocalEditsDuringPull = cloudLocalEditPendingInitial || cloudLocalEditDuringPull;
+        let memberLocalTasks = null;
+        if (hadLocalEditsDuringPull && !isAdmin()) {
+          // Keep member task creations and permitted progress edits made while this GET was in flight.
+          memberLocalTasks = Array.isArray(tasks) ? tasks.slice() : [];
+        } else if (hadLocalEditsDuringPull) {
           cloudConflict = true;
           cloudSavePending = false;
           setSyncStatus("Local edits detected during sync — download a backup", "slate");
           return;
         }
+        cloudLocalEditPendingInitial = false;
+        cloudLocalEditDuringPull = false;
         if (data && typeof data === 'object') {
           const incomingTools = Array.isArray(data.tools) ? data.tools : [];
           const previousToolIds = new Set(tools.map(tool => String(tool.id)));
@@ -775,18 +927,42 @@ function clearTeamPin() {
           }
           cloudToolsInitialized = true;
           tasks = Array.isArray(data.tasks) ? data.tasks : [];
+          if (memberLocalTasks) {
+            const cloudTaskIds = new Set(tasks.map(task => String(task && task.id)));
+            const localById = new Map(memberLocalTasks.filter(task => task && task.id).map(task => [String(task.id), task]));
+            tasks = tasks.map(cloudTask => {
+              const localTask = localById.get(String(cloudTask && cloudTask.id));
+              if (!localTask || !isOwnTask(localTask)) return cloudTask;
+              const merged = { ...cloudTask, status: localTask.status };
+              if (Object.prototype.hasOwnProperty.call(localTask, 'progress')) merged.progress = localTask.progress;
+              if (Object.prototype.hasOwnProperty.call(localTask, 'outputLink')) merged.outputLink = localTask.outputLink;
+              for (const field of ['pipelineStage','reviewSubmittedAt']) if (Object.prototype.hasOwnProperty.call(localTask, field)) merged[field] = localTask[field];
+              if (cloudTask.category === 'SCRIPT WRITING' && ['shweta','vanita'].includes(currentUser.memberId)) { merged.scriptText = localTask.scriptText; if (localTask.scriptWorkspace !== undefined) merged.scriptWorkspace = localTask.scriptWorkspace; if (localTask.scriptReview !== undefined) merged.scriptReview = localTask.scriptReview; }
+              return merged;
+            });
+            memberLocalTasks.forEach(localTask => {
+              if (!localTask || !localTask.id || cloudTaskIds.has(String(localTask.id))) return;
+              if (String(localTask.assignedBy || '').trim().toLowerCase() === String(currentUser.displayName || '').trim().toLowerCase()) {
+                tasks.unshift(localTask);
+              }
+            });
+            cloudSavePending = true;
+          }
           shoots = Array.isArray(data.shoots) ? data.shoots : [];
           notifications = Array.isArray(data.notifications) ? data.notifications : [];
           activity = data.activity;
+          contentCalendar = Array.isArray(data.contentCalendar) ? data.contentCalendar : [];
 
           localStorage.setItem('dd_tasks_v2', JSON.stringify(tasks));
           localStorage.setItem('dd_shoots_v2', JSON.stringify(shoots));
           localStorage.setItem('dd_tools_v2', JSON.stringify(tools));
           localStorage.setItem('dd_notifs_v2', JSON.stringify(notifications));
           localStorage.setItem('dd_activity_v1', JSON.stringify(activity));
+          localStorage.setItem('dd_content_calendar_v1', JSON.stringify(contentCalendar));
 
           renderAll();
           setSyncStatus("Live Synced with Team", "emerald");
+          showNewToolAnnouncementOnce();
           if (cloudSavePending && !cloudConflict) {
             cloudSavePending = false;
             void pushToCloud();
@@ -797,7 +973,47 @@ function clearTeamPin() {
         if (!silent) setSyncStatus("Sync failed — check connection", "slate");
       } finally {
         isCloudPulling = false;
+        if (cloudSavePending && cloudReady && !cloudConflict) {
+          cloudSavePending = false;
+          void pushToCloud();
+        }
       }
+    }
+
+    let newToolAnnouncementTimer = null;
+
+    function showNewToolAnnouncementOnce() {
+      const userKey = currentUser && (currentUser.id || currentUser.username || currentUser.displayName)
+        ? String(currentUser.id || currentUser.username || currentUser.displayName).toLowerCase().replace(/[^a-z0-9_-]/g, "_")
+        : "team";
+      const seenKey = "dd_seen_tool_announcement_content_calendar_v1_" + userKey;
+      const popup = document.getElementById("newToolAnnouncementPopup");
+      if (!popup) return;
+      try {
+        if (localStorage.getItem(seenKey) === "1") return;
+        localStorage.setItem(seenKey, "1");
+      } catch (e) {}
+      popup.classList.remove("hidden");
+      popup.classList.add("flex");
+      if (newToolAnnouncementTimer) window.clearTimeout(newToolAnnouncementTimer);
+      newToolAnnouncementTimer = window.setTimeout(dismissNewToolAnnouncement, 7000);
+    }
+
+    function dismissNewToolAnnouncement() {
+      const popup = document.getElementById("newToolAnnouncementPopup");
+      if (popup) {
+        popup.classList.add("hidden");
+        popup.classList.remove("flex");
+      }
+      if (newToolAnnouncementTimer) {
+        window.clearTimeout(newToolAnnouncementTimer);
+        newToolAnnouncementTimer = null;
+      }
+    }
+
+    function openAnnouncedContentCalendar() {
+      dismissNewToolAnnouncement();
+      if (typeof openContentCalendar === "function") openContentCalendar();
     }
 
     function setSyncStatus(txt, clr) {
@@ -818,7 +1034,7 @@ function clearTeamPin() {
     function forceCloudSync() {
       const icon = document.getElementById('syncIcon');
       if (icon) icon.classList.add('animate-spin');
-      pullFromCloud(false, true).then(() => {
+      pullFromCloud(false).then(() => {
         setTimeout(() => {
           if (icon) icon.classList.remove('animate-spin');
         }, 500);
@@ -833,11 +1049,13 @@ function clearTeamPin() {
         const tl = localStorage.getItem('dd_tools_v2');
         const n = localStorage.getItem('dd_notifs_v2');
         const a = localStorage.getItem('dd_activity_v1');
+        const cc = localStorage.getItem('dd_content_calendar_v1');
         if (t) tasks = JSON.parse(t);
         if (s) shoots = JSON.parse(s);
         if (tl) tools = JSON.parse(tl);
         if (n) notifications = JSON.parse(n);
         if (a) activity = JSON.parse(a);
+        if (cc) contentCalendar = JSON.parse(cc);
       } catch (e) {}
 
       // Default Date setup in modal (Assigned = Today)
@@ -848,11 +1066,14 @@ function clearTeamPin() {
       renderMemberCarousel();
       renderAll();
 
-      // Connect to the shared database and ask for the Team PIN once.
-      pullFromCloud(false, true);
-
-      // Auto sync every 3 seconds for zero delay
-      setInterval(() => pullFromCloud(true), 3000);
+      if (authToken && currentUser) {
+        document.getElementById("authOverlay").classList.add("hidden");
+        applyRoleUI();
+        pullFromCloud(false);
+        startAutoSync();
+      } else {
+        document.getElementById("authOverlay").classList.remove("hidden");
+      }
     };
 
     function getDashboardLocalDate(date = new Date()) {
@@ -971,6 +1192,10 @@ function clearTeamPin() {
       renderNotifications();
       updateCounts();
       renderDashboard();
+      if (typeof renderContentCalendar === 'function') renderContentCalendar();
+      if (typeof renderWriterStudio === 'function') renderWriterStudio();
+      if (typeof renderProductionPipeline === 'function') renderProductionPipeline();
+      if (typeof renderMyWorkspace === 'function') renderMyWorkspace();
     }
 
     // --- CAROUSEL ---
@@ -1030,6 +1255,7 @@ function clearTeamPin() {
       if (!container) return;
 
       const filtered = tasks.filter(t => {
+        if (!isAdmin() && !currentUser) return false;
         if (activeMemberFilter !== 'all' && t.assignedTo !== activeMemberFilter) return false;
         if (activeStatusFilter !== 'all' && t.status !== activeStatusFilter) return false;
         if (searchQuery) {
@@ -1052,6 +1278,8 @@ function clearTeamPin() {
       container.innerHTML = filtered.map(t => {
         const isCompleted = t.status === 'completed';
         const isChanges = t.status === 'changes_required';
+        const canEditTask = isAdmin() || isOwnTask(t);
+        const taskProgress = Number.isInteger(t.progress) ? t.progress : 0;
 
         return `
           <div class="bg-[#111827] border border-[#1f293d] rounded-2xl p-4 shadow-lg flex flex-col justify-between">
@@ -1125,7 +1353,7 @@ function clearTeamPin() {
               <div class="mb-3">
                 <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Final Output / Drive Link:</label>
                 <div class="flex items-center gap-1.5">
-                  <input type="url" value="${t.outputLink || ''}" onchange="saveOutputLink('${t.id}', this.value)" placeholder="Paste drive / video output link..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500">
+                  <input type="url" value="${t.outputLink || ''}" ${canEditTask ? '' : 'disabled'} onchange="saveOutputLink('${t.id}', this.value)" placeholder="Paste drive / video output link..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-50">
                   ${t.outputLink ? `
                     <a href="${t.outputLink}" target="_blank" class="p-1 text-emerald-400 hover:text-emerald-300">
                       <i class="ph-bold ph-link text-base"></i>
@@ -1133,18 +1361,22 @@ function clearTeamPin() {
                   ` : ''}
                 </div>
               </div>
+              <div class="mb-3 rounded-xl border border-[#1f293d] bg-[#0c1220] p-2.5">
+                <div class="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 mb-1"><span>Task Progress</span><span id="progressLabel_${t.id}">${taskProgress}%</span></div>
+                <input type="range" min="0" max="100" step="5" value="${taskProgress}" ${canEditTask ? '' : 'disabled'} oninput="document.getElementById('progressLabel_${t.id}').textContent=this.value+'%'" onchange="saveTaskProgress('${t.id}', this.value)" class="w-full accent-orange-500 disabled:opacity-40">
+              </div>
             </div>
 
             <!-- Controls -->
             <div class="pt-3 border-t border-[#1f293d] flex items-center justify-between gap-2">
-              <select onchange="updateTaskStatus('${t.id}', this.value)" class="bg-[#0c1220] border border-[#1f293d] text-xs font-bold rounded-lg px-2 py-1 text-slate-200 focus:outline-none ${isCompleted ? 'text-emerald-400 border-emerald-500/40' : (isChanges ? 'text-rose-400 border-rose-500/40' : '')}">
+              <select ${canEditTask ? '' : 'disabled'} onchange="updateTaskStatus('${t.id}', this.value)" class="bg-[#0c1220] border border-[#1f293d] text-xs font-bold rounded-lg px-2 py-1 text-slate-200 focus:outline-none disabled:opacity-50 ${isCompleted ? 'text-emerald-400 border-emerald-500/40' : (isChanges ? 'text-rose-400 border-rose-500/40' : '')}">
                 <option value="pending" ${t.status === 'pending' ? 'selected' : ''}>⏳ Pending</option>
                 <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>⚡ In Progress</option>
                 <option value="changes_required" ${t.status === 'changes_required' ? 'selected' : ''}>🔄 Changes Required</option>
                 <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✓ Completed</option>
               </select>
 
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 ${isAdmin() ? '' : 'hidden'}">
                 <button onclick="openChangesModal('${t.id}')" title="Request Changes" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30">
                   <i class="ph-bold ph-warning-circle text-sm"></i>
                 </button>
@@ -1166,6 +1398,8 @@ function clearTeamPin() {
     function openTaskModal() {
       document.getElementById('taskForm').reset();
       document.getElementById('taskEditId').value = '';
+      const assignerField = document.getElementById('taskAssignerField');
+      if (assignerField) assignerField.classList.toggle('hidden', !isAdmin());
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('taskAssignedDateInput').value = today;
       document.getElementById('taskModalTitle').innerHTML = '<i class="ph-bold ph-plus-circle text-orange-500"></i> Assign New Content Task';
@@ -1177,6 +1411,7 @@ function clearTeamPin() {
     }
 
     function editTask(id) {
+      if (!isAdmin()) return;
       const t = tasks.find(x => x.id === id);
       if (!t) return;
 
@@ -1197,12 +1432,13 @@ function clearTeamPin() {
     function handleTaskSubmit(e) {
       e.preventDefault();
       const editId = document.getElementById('taskEditId').value;
+      if (!isAdmin() && editId) return;
       const title = document.getElementById('taskTitleInput').value.trim();
       const category = document.getElementById('taskCategoryInput').value;
       const assignedDate = document.getElementById('taskAssignedDateInput').value;
       const dueDate = document.getElementById('taskDueDateInput').value;
       const assignedTo = document.getElementById('taskAssigneeInput').value;
-      const assignedBy = document.getElementById('taskAssignerInput').value;
+      const assignedBy = isAdmin() ? document.getElementById('taskAssignerInput').value : currentUser.displayName;
       const scriptText = document.getElementById('taskScriptTextInput').value.trim();
       const docLink = document.getElementById('taskDocLinkInput').value.trim();
 
@@ -1223,10 +1459,10 @@ function clearTeamPin() {
           createdAt: Date.now()
         };
         tasks.unshift(newTask);
-        addNotification(`New task assigned to ${assignedTo}: "${title}" by ${assignedBy}`);
+        if (isAdmin()) addNotification(`New task assigned to ${assignedTo}: "${title}" by ${assignedBy}`);
       }
 
-      recordActivity(editId ? 'Task updated' : 'Task created', title);
+      if (isAdmin()) recordActivity(editId ? 'Task updated' : 'Task created', title);
       closeTaskModal();
       renderTasks();
       updateCounts();
@@ -1235,6 +1471,7 @@ function clearTeamPin() {
     }
 
     function deleteTask(id) {
+      if (!isAdmin()) return;
       if (!confirm('Are you sure you want to delete this task?')) return;
       const removedTask = tasks.find(x => x.id === id);
       recordActivity('Task deleted', removedTask ? removedTask.title : id);
@@ -1247,10 +1484,12 @@ function clearTeamPin() {
 
     function updateTaskStatus(id, newStatus) {
       const t = tasks.find(x => x.id === id);
+      if (!t || (!isAdmin() && !isOwnTask(t))) return;
       if (!t) return;
       t.status = newStatus;
+      if (typeof syncTaskProductionStatus === 'function') syncTaskProductionStatus(t, newStatus);
       recordActivity('Task status changed', (t.title || 'Task') + ' → ' + newStatus.replace(/_/g, ' '));
-      if (newStatus === 'completed') {
+      if (isAdmin() && newStatus === 'completed') {
         addNotification(`✓ Task completed: "${t.title}" by ${t.assignedTo}`);
       }
       renderTasks();
@@ -1259,9 +1498,18 @@ function clearTeamPin() {
       pushToCloud();
     }
 
+    function saveTaskProgress(id, value) {
+      const t = tasks.find(x => x.id === id);
+      if (!t || (!isAdmin() && !isOwnTask(t))) return;
+      t.progress = Math.max(0, Math.min(100, Number.parseInt(value, 10) || 0));
+      renderTasks();
+      pushToCloud();
+    }
+
     function saveOutputLink(id, link) {
       const t = tasks.find(x => x.id === id);
-      if (t) {
+      if (t && (isAdmin() || isOwnTask(t))) {
+        if ((link || '').trim() !== (t.outputLink || '') && typeof syncProductionOutputChange === 'function') syncProductionOutputChange(t);
         t.outputLink = (link || '').trim();
         pushToCloud();
       }
@@ -1269,6 +1517,7 @@ function clearTeamPin() {
 
     // --- REVISIONS / CHANGES ---
     function openChangesModal(id) {
+      if (!isAdmin()) return;
       const t = tasks.find(x => x.id === id);
       if (!t) return;
 
@@ -1291,6 +1540,7 @@ function clearTeamPin() {
       const t = tasks.find(x => x.id === id);
       if (t) {
         t.status = 'changes_required';
+        t.pipelineStage = 'revision';
         t.revisionNotes = notes;
         t.revisionBy = document.getElementById('changeRequestedByInput').value;
         t.revisionAt = new Date().toISOString();
@@ -1333,6 +1583,7 @@ function clearTeamPin() {
 
     // --- SHOOTS TRACKER ---
     function openShootModal() {
+      if (!isAdmin()) return;
       document.getElementById('shootTopicInput').value = '';
       document.getElementById('shootDateTimeInput').value = '';
       document.getElementById('shootPresenterInput').value = '';
@@ -1347,6 +1598,7 @@ function clearTeamPin() {
 
     function handleShootSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return;
       const topic = document.getElementById('shootTopicInput').value.trim();
       const dateTime = document.getElementById('shootDateTimeInput').value;
       const presenter = document.getElementById('shootPresenterInput').value.trim();
@@ -1402,15 +1654,15 @@ function clearTeamPin() {
 
             <div class="mb-3">
               <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Raw Footage Drive Link:</label>
-              <input type="url" value="${s.footageLink || ''}" onchange="saveShootFootage('${s.id}', this.value)" placeholder="Paste raw video Drive folder..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white">
+              <input type="url" value="${s.footageLink || ''}" ${isAdmin() ? '' : 'disabled'} onchange="saveShootFootage('${s.id}', this.value)" placeholder="Paste raw video Drive folder..." class="w-full bg-[#0c1220] border border-[#1f293d] rounded-lg px-2.5 py-1 text-xs text-white disabled:opacity-50">
             </div>
           </div>
 
           <div class="pt-3 border-t border-[#1f293d] flex items-center justify-between">
-            <button onclick="sendShootToEdit('${s.id}')" class="px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 font-bold text-xs flex items-center gap-1 border border-orange-500/30">
+            <button ${isAdmin() ? '' : 'hidden'} onclick="sendShootToEdit('${s.id}')" class="px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 font-bold text-xs flex items-center gap-1 border border-orange-500/30">
               <i class="ph-bold ph-scissors"></i> Send to Edit
             </button>
-            <button onclick="deleteShoot('${s.id}')" class="p-1.5 text-slate-500 hover:text-rose-400">
+            <button ${isAdmin() ? '' : 'hidden'} onclick="deleteShoot('${s.id}')" class="p-1.5 text-slate-500 hover:text-rose-400">
               <i class="ph-bold ph-trash text-sm"></i>
             </button>
           </div>
@@ -1419,6 +1671,7 @@ function clearTeamPin() {
     }
 
     function saveShootFootage(id, link) {
+      if (!isAdmin()) return;
       const s = shoots.find(x => x.id === id);
       if (s) {
         s.footageLink = (link || '').trim();
@@ -1427,6 +1680,7 @@ function clearTeamPin() {
     }
 
     function deleteShoot(id) {
+      if (!isAdmin()) return;
       if (!confirm('Delete this shoot?')) return;
       shoots = shoots.filter(x => x.id !== id);
       renderShoots();
@@ -1435,6 +1689,7 @@ function clearTeamPin() {
     }
 
     function sendShootToEdit(id) {
+      if (!isAdmin()) return;
       const s = shoots.find(x => x.id === id);
       if (!s) return;
       openTaskModal();
@@ -1444,6 +1699,8 @@ function clearTeamPin() {
 
     // --- TOOLS VAULT ---
     function openToolsModal() {
+      const addForm = document.getElementById('toolsAddForm');
+      if (addForm) addForm.classList.toggle('hidden', !isAdmin());
       renderTools();
       document.getElementById('toolsModal').classList.remove('hidden');
     }
@@ -1454,6 +1711,7 @@ function clearTeamPin() {
 
     function handleToolSubmit(e) {
       e.preventDefault();
+      if (!isAdmin()) return;
       const name = document.getElementById('toolNameInput').value.trim();
       const category = document.getElementById('toolCategoryInput').value;
       const link = document.getElementById('toolLinkInput').value.trim();
@@ -1500,6 +1758,7 @@ function clearTeamPin() {
     }
 
     function deleteTool(id) {
+      if (!isAdmin()) return;
       const removedTool = tools.find(x => x.id === id);
       if (removedTool) recordActivity('Tool deleted', removedTool.name);
       tools = tools.filter(x => x.id !== id);
@@ -1510,6 +1769,7 @@ function clearTeamPin() {
 
     // --- ANNOUNCEMENT ---
     function openAnnounceModal() {
+      if (!isAdmin()) return;
       document.getElementById('announceTextInput').value = '';
       document.getElementById('announceModal').classList.remove('hidden');
     }
@@ -1519,6 +1779,7 @@ function clearTeamPin() {
     }
 
     function submitAnnouncement() {
+      if (!isAdmin()) return;
       const txt = document.getElementById('announceTextInput').value.trim();
       if (!txt) return;
       triggerAlert(`📢 Announcement: ${txt}`);
@@ -1579,13 +1840,88 @@ function clearTeamPin() {
     }
 
     function clearNotifications() {
+      if (!isAdmin()) return;
       notifications = [];
       renderNotifications();
       pushToCloud();
     }
 
+    const TEAM_MEMBER_NAMES = {vijay:"Vijay",tushar:"Tushar",mirtunjay:"Mirtunjay",shweta:"Shweta",vanita:"Vanita",manoj:"Manoj",ashish:"Ashish",test:"Test"};
+    function setMembersMessage(message, good=false) {
+      const el=document.getElementById("membersMessage");
+      if(el){el.textContent=message||"";el.className="text-xs min-h-4 "+(good?"text-emerald-300":"text-slate-400");}
+    }
+    function closeMembersModal() {
+      document.getElementById("membersModal").classList.add("hidden");
+      document.getElementById("createMemberPin").value="";
+      document.getElementById("resetMemberPin").value="";
+      setMembersMessage("");
+    }
+    async function openMembersModal() {
+      if(!isAdmin()) return;
+      document.getElementById("membersModal").classList.remove("hidden");
+      await loadTeamAccounts();
+    }
+    async function loadTeamAccounts() {
+      if(!isAdmin()) return;
+      const list=document.getElementById("teamAccountsList");
+      const resetSelect=document.getElementById("resetMemberId");
+      list.innerHTML='<p class="text-xs text-slate-400">Loading accounts…</p>';
+      try {
+        const res=await fetch(CLOUD_API.replace("/workspace","/auth/users"),{headers:authHeaders(),cache:"no-store"});
+        const data=await res.json().catch(()=>({}));
+        if(res.status===401){logoutUser();return;}
+        if(!res.ok) throw new Error(data.error||"Could not load accounts.");
+        const users=Array.isArray(data.users)?data.users:[];
+        list.innerHTML=users.length?users.map(u=>'<div class="flex items-center justify-between gap-3 rounded-xl border border-[#1f293d] bg-[#0c1220] px-3 py-2.5"><div><p class="text-sm font-semibold text-white">'+escapeHtml(u.display_name)+'</p><p class="text-[11px] text-slate-500">'+escapeHtml(u.member_id)+' · '+escapeHtml(u.role)+'</p></div><span class="rounded-full px-2.5 py-1 text-[10px] font-bold '+(Number(u.active)===1?'bg-emerald-500/10 text-emerald-300':'bg-slate-700 text-slate-300')+'">'+(Number(u.active)===1?'Active':'Inactive')+'</span></div>').join(""):'<p class="text-xs text-slate-400">No accounts found.</p>';
+        const activeUsers=users.filter(u=>Number(u.active)===1&&u.member_id!=="pavan");
+        resetSelect.innerHTML='<option value="">Select account</option>'+activeUsers.map(u=>'<option value="'+escapeHtml(u.member_id)+'">'+escapeHtml(u.display_name)+'</option>').join("");
+        const existing=new Set(users.map(u=>u.member_id));
+        const createSelect=document.getElementById("createMemberId");
+        Array.from(createSelect.options).forEach(o=>{if(o.value)o.disabled=existing.has(o.value);});
+        setMembersMessage("Account list updated.",true);
+      } catch(err) {
+        list.innerHTML='<p class="text-xs text-rose-300">'+escapeHtml(err.message||"Could not load accounts.")+'</p>';
+        setMembersMessage(err.message||"Could not load accounts.");
+      }
+    }
+    async function createTeamAccount(event) {
+      event.preventDefault();
+      if(!isAdmin()) return;
+      const memberId=document.getElementById("createMemberId").value;
+      const pin=document.getElementById("createMemberPin").value;
+      if(!memberId||pin.length<6){setMembersMessage("Select a member and enter a PIN with at least 6 characters.");return;}
+      try {
+        const res=await fetch(CLOUD_API.replace("/workspace","/auth/users"),{method:"POST",headers:authHeaders(true),body:JSON.stringify({memberId,pin})});
+        const data=await res.json().catch(()=>({}));
+        if(res.status===401){logoutUser();return;}
+        if(!res.ok) throw new Error(data.error||"Account creation failed.");
+        document.getElementById("createMemberForm").reset();
+        setMembersMessage("Account created for "+(TEAM_MEMBER_NAMES[memberId]||memberId)+".",true);
+        await loadTeamAccounts();
+      } catch(err){setMembersMessage(err.message||"Account creation failed.");}
+    }
+    async function resetTeamMemberPin(event) {
+      event.preventDefault();
+      if(!isAdmin()) return;
+      const memberId=document.getElementById("resetMemberId").value;
+      const pin=document.getElementById("resetMemberPin").value;
+      if(!memberId||pin.length<6){setMembersMessage("Select an existing account and enter a PIN with at least 6 characters.");return;}
+      if(!confirm("Reset the personal PIN for "+(TEAM_MEMBER_NAMES[memberId]||memberId)+"?")) return;
+      try {
+        const res=await fetch(CLOUD_API.replace("/workspace","/auth/users/reset-pin"),{method:"POST",headers:authHeaders(true),body:JSON.stringify({memberId,pin})});
+        const data=await res.json().catch(()=>({}));
+        if(res.status===401){logoutUser();return;}
+        if(!res.ok) throw new Error(data.error||"PIN reset failed.");
+        document.getElementById("resetMemberForm").reset();
+        setMembersMessage("PIN reset successfully. Share the new PIN securely with that member.",true);
+        await loadTeamAccounts();
+      } catch(err){setMembersMessage(err.message||"PIN reset failed.");}
+    }
+
     // --- SHARED TEAM UTILITIES ---
     function recordActivity(action, detail) {
+      if (!isAdmin()) return;
       activity.unshift({id:'activity_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),action:String(action||'Workspace updated'),detail:String(detail||''),time:new Date().toISOString()});
       // Retain a larger searchable history; old records beyond the previous 100-entry cap cannot be recovered.
       if(activity.length>5000) activity=activity.slice(0,5000);
@@ -1646,7 +1982,7 @@ function clearTeamPin() {
       const box=document.getElementById('globalSearchResults');box.innerHTML=results.length?results.slice(0,100).map(x=>'<div class="p-3 rounded-xl bg-[#0c1220] border border-[#1f293d]"><div class="text-[10px] uppercase text-sky-400 font-bold">'+x.kind+'</div><div class="text-sm font-bold text-white break-words">'+escapeHtml(x.title)+'</div><div class="text-xs text-slate-400 break-words">'+escapeHtml(x.detail)+'</div></div>').join(''):'<div class="text-center text-sm text-slate-400 py-8">No results found. Try another keyword or filter.</div>';
     }
     function exportPortalBackup(){
-      const snap={format:'digital-portal-backup',version:1,exportedAt:new Date().toISOString(),tasks,shoots,tools,notifications,activity};
+      const snap={format:'digital-portal-backup',version:1,exportedAt:new Date().toISOString(),tasks,shoots,tools,notifications,activity,contentCalendar};
       const blob=new Blob([JSON.stringify(snap,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
       a.href=url;a.download='digital-portal-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);setSyncStatus('Backup downloaded','emerald');
     }
@@ -1654,7 +1990,7 @@ function clearTeamPin() {
       const file=event.target.files&&event.target.files[0];event.target.value='';if(!file)return;
       try{const snap=JSON.parse(await file.text());if(!snap||snap.format!=='digital-portal-backup'||!Array.isArray(snap.tasks)||!Array.isArray(snap.shoots)||!Array.isArray(snap.tools)||!Array.isArray(snap.notifications))throw new Error('This file is not a valid Digital Portal backup.');
       if(!confirm('Restore this backup? Current portal data will be replaced on all synced devices. Download a fresh backup first if you may need current data.'))return;
-      tasks=snap.tasks;shoots=snap.shoots;tools=snap.tools;notifications=snap.notifications;activity=Array.isArray(snap.activity)?snap.activity:[];
+      tasks=snap.tasks;shoots=snap.shoots;tools=snap.tools;notifications=snap.notifications;activity=Array.isArray(snap.activity)?snap.activity:[];if(Array.isArray(snap.contentCalendar))contentCalendar=snap.contentCalendar;
       recordActivity('Backup restored','Data restored from backup file');
       localStorage.setItem('dd_tasks_v2',JSON.stringify(tasks));localStorage.setItem('dd_shoots_v2',JSON.stringify(shoots));localStorage.setItem('dd_tools_v2',JSON.stringify(tools));localStorage.setItem('dd_notifs_v2',JSON.stringify(notifications));localStorage.setItem('dd_activity_v1',JSON.stringify(activity));
       renderAll();await pushToCloud();alert('Restore attempted. Check the sync status before using another device.');}catch(err){alert('Could not restore backup: '+(err.message||'Invalid file'));}
@@ -1665,10 +2001,15 @@ function clearTeamPin() {
     function switchMainTab(tab) {
       const tasksC = document.getElementById('tasksViewContainer');
       const shootsC = document.getElementById('shootsViewContainer');
+      const calendarC = document.getElementById('contentCalendarViewContainer');
+      const dashboard = document.getElementById('smartDashboard');
       const tabT = document.getElementById('tabTasksBtn');
       const tabS = document.getElementById('tabShootsBtn');
+      const tabC = document.getElementById('tabCalendarBtn');
       const shootsAct = document.getElementById('shootsTopAction');
-
+      if (calendarC) calendarC.classList.add('hidden');
+      if (dashboard) dashboard.classList.remove('hidden');
+      if (tabC) tabC.className = "px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-400 hover:text-slate-200 border border-transparent hover:border-[#1f293d] flex items-center gap-2 transition";
       if (tab === 'tasks') {
         tasksC.classList.remove('hidden');
         shootsC.classList.add('hidden');
@@ -1705,5 +2046,14 @@ function clearTeamPin() {
       document.getElementById('tabShootsCount').innerText = shoots.length;
     }
   </script>
+  <script src="./content-calendar.js"></script>
+  <script src="./writer-studio.js"></script>
+  <script src="./production-pipeline.js"></script>
+  <script src="./my-workspace.js"></script>
+
 </body>
 </html>
+
+
+
+
