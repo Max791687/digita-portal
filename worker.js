@@ -382,7 +382,7 @@ async function handleDrive(request, url, env, user, origin) {
     if (!tokens?.access_token) return reply({error:"Drive authorization expired. Ask an admin to reconnect Drive."},409);
     stage = "start upload with Google";
     const init=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id",{
-      method:"POST",redirect:"error",
+      method:"POST",redirect:"manual",
       headers:{Authorization:"Bearer "+tokens.access_token,"Content-Type":"application/json","X-Upload-Content-Type":type,"X-Upload-Content-Length":String(size)},
       body:JSON.stringify({name,parents:[connection.folder],mimeType:type})
     });
@@ -401,7 +401,7 @@ async function handleDrive(request, url, env, user, origin) {
       return reply({ticket:bytesToBase64Url(bytes),chunkSize:DRIVE_CHUNK_SIZE});
     }
     stage = "send file to Google";
-    const result=await fetch(uploadUrl,{method:"PUT",redirect:"error",headers:{"Content-Type":type},body:file});
+    const result=await fetch(uploadUrl,{method:"PUT",redirect:"manual",headers:{"Content-Type":type},body:file});
     if (!result.ok) return reply({error:"Drive rejected the upload. Check available storage and folder access."},502);
     const {id}=await result.json();
     if (!id) return reply({error:"Drive did not confirm the upload."},502);
