@@ -52,12 +52,23 @@
 <style>
   .diwali-banner { display: none; }
   .diwali-theme .diwali-banner {
-    display: block; padding: .65rem 1rem; text-align: center;
-    background: linear-gradient(105deg, #341852, #572816, #341852);
-    color: #ffedbd; border-bottom: 1px solid #a56c33;
-    font-size: .875rem; line-height: 1.5;
+    display: grid; grid-template-columns: clamp(30px, 9vw, 105px) minmax(0, 1fr) clamp(30px, 9vw, 105px);
+    align-items: center; gap: clamp(.25rem, 2vw, 1.5rem); position: relative;
+    overflow: hidden; isolation: isolate; margin: .75rem auto; width: calc(100% - 2rem); max-width: 80rem;
+    padding: 1.1rem clamp(.5rem, 3vw, 2rem) .7rem; text-align: center;
+    background: radial-gradient(ellipse at 50% 110%, #652746, transparent 70%), #320f2e;
+    color: #ffedbd; border: 1px solid #d59b45; border-radius: .75rem;
   }
-  .diwali-theme .diwali-banner strong { color: #ffd782; }
+  .diwali-banner strong { display: block; color: #ffda85; font: bold clamp(1.25rem, 4vw, 2.25rem)/1.1 Georgia, serif; }
+  .diwali-banner p { margin: .3rem 0 0; font-size: clamp(.75rem, 1.7vw, .95rem); line-height: 1.4; }
+  .diwali-lamp { width: 100%; filter: drop-shadow(0 0 8px #ff9b42a0); }
+  .diwali-lights { position: absolute; inset: 0 0 auto; width: 100%; height: 12px; z-index: -1; opacity: .85;
+    background: radial-gradient(circle, #fff1b8 1px, #ffc458 2px, #ff9b4230 4px, transparent 6px) 0 -1px / 28px 12px repeat-x; }
+  .diwali-rangoli { position: absolute; width: 92px; height: 92px; bottom: -47px; z-index: -1; opacity: .55;
+    border-radius: 50%; background: repeating-conic-gradient(#f5ad54 0deg 5deg, #a7498b 5deg 11deg, transparent 11deg 19deg);
+    mask-image: radial-gradient(circle, transparent 12%, black 13% 26%, transparent 27% 33%, black 34% 45%, transparent 46% 51%, black 52% 64%, transparent 65%); }
+  .diwali-rangoli-left { left: -46px; }
+  .diwali-rangoli-right { right: -46px; }
   .diwali-theme header { border-bottom-color: #a56c33; }
 </style>
 <script>
@@ -225,9 +236,13 @@
     </div>
   </header>
   <aside class="diwali-banner" aria-label="Diwali greeting">
-  <span aria-hidden="true">🪔</span> <strong>Happy Diwali, Team!</strong>
-  <span> Wishing you and your families a bright and joyful Diwali.</span> <span aria-hidden="true">✨</span>
-</aside>
+    <span class="diwali-lights" aria-hidden="true"></span>
+    <span class="diwali-rangoli diwali-rangoli-left" aria-hidden="true"></span>
+    <span class="diwali-rangoli diwali-rangoli-right" aria-hidden="true"></span>
+    <svg class="diwali-lamp" viewBox="0 0 100 74" aria-hidden="true" focusable="false"><path fill="#f79436" d="M51 4c3 17 16 23 13 36-2 8-10 12-16 8-14-7-5-25 3-44Z"/><path fill="#fff1ad" d="M51 23c2 9 7 13 5 19-2 5-8 5-10 0-2-4 2-13 5-19Z"/><path fill="#9c3e24" stroke="#efac55" stroke-width="2" d="M8 48h84c-4 14-19 23-42 23S13 62 8 48Z"/><ellipse cx="50" cy="48" rx="42" ry="7" fill="#d27334" stroke="#ffd782" stroke-width="2"/><path fill="none" stroke="#ffd782" stroke-width="2" d="m28 57 5 4 5-4m7 4 5 4 5-4m7-4 5 4 5-4"/></svg>
+    <div><strong>Happy Diwali, Team!</strong><p>Wishing you and your families a bright and joyful Diwali.</p></div>
+    <svg class="diwali-lamp" viewBox="0 0 100 74" aria-hidden="true" focusable="false"><path fill="#f79436" d="M51 4c3 17 16 23 13 36-2 8-10 12-16 8-14-7-5-25 3-44Z"/><path fill="#fff1ad" d="M51 23c2 9 7 13 5 19-2 5-8 5-10 0-2-4 2-13 5-19Z"/><path fill="#9c3e24" stroke="#efac55" stroke-width="2" d="M8 48h84c-4 14-19 23-42 23S13 62 8 48Z"/><ellipse cx="50" cy="48" rx="42" ry="7" fill="#d27334" stroke="#ffd782" stroke-width="2"/><path fill="none" stroke="#ffd782" stroke-width="2" d="m28 57 5 4 5-4m7 4 5 4 5-4m7-4 5 4 5-4"/></svg>
+  </aside>
 
   <!-- WORKSPACE TABS & CONTENT -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
