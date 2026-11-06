@@ -49,6 +49,25 @@
   
 .member-mode #toolsListContainer button[onclick*="deleteTool"] { display: none !important; }
 </style>
+<style>
+  .diwali-banner { display: none; }
+  .diwali-theme .diwali-banner {
+    display: block; padding: .65rem 1rem; text-align: center;
+    background: linear-gradient(105deg, #341852, #572816, #341852);
+    color: #ffedbd; border-bottom: 1px solid #a56c33;
+    font-size: .875rem; line-height: 1.5;
+  }
+  .diwali-theme .diwali-banner strong { color: #ffd782; }
+  .diwali-theme header { border-bottom-color: #a56c33; }
+</style>
+<script>
+(() => {
+  const now = Date.now();
+  const starts = Date.parse('2026-11-06T00:00:00+05:30');
+  const ends = Date.parse('2026-11-12T00:00:00+05:30');
+  if (now >= starts && now < ends) document.documentElement.classList.add('diwali-theme');
+})();
+</script>
 </head>
 <body class="min-h-screen custom-scrollbar pb-16">
   <div id="authOverlay" class="fixed inset-0 z-[100] bg-[#070b13] flex items-center justify-center p-4">
@@ -205,6 +224,10 @@
 
     </div>
   </header>
+  <aside class="diwali-banner" aria-label="Diwali greeting">
+  <span aria-hidden="true">🪔</span> <strong>Happy Diwali, Team!</strong>
+  <span> Wishing you and your families a bright and joyful Diwali.</span> <span aria-hidden="true">✨</span>
+</aside>
 
   <!-- WORKSPACE TABS & CONTENT -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
