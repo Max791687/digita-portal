@@ -249,11 +249,119 @@ async function handleWriterAI(request, env, user, origin) {
   } finally { if(timer)clearTimeout(timer); }
 }
 
+const DRIVE_CALLBACK = "https://digital-team-sync-staging.max791687.workers.dev/auth/google/callback";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_LIMIT = 20 * 1024 * 1024;
+const DRIVE_CONNECTION = "drive:connection:v1";
+const DRIVE_PENDING = "drive:pending:v1";
+
+async function driveStore(env, id, value) {
+  await env.DB.prepare("INSERT INTO portal_data(id,data,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at")
+    .bind(id, JSON.stringify(value), new Date().toISOString()).run();
+}
+async function driveKey(env) {
+  const bytes = await crypto.subtle.digest("SHA-256", utf8("drive-token:v1:" + env.SESSION_SECRET));
+  return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt","decrypt"]);
+}
+async function driveTokens(env, params) {
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method:"POST", body:new URLSearchParams({...params,client_id:env.GOOGLE_CLIENT_ID,client_secret:env.GOOGLE_CLIENT_SECRET})
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+async function driveCallback(url, env) {
+  const back = status => new Response(null,{status:303,headers:{Location:ALLOWED_ORIGIN+"/?drive="+status,"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
+  const state = url.searchParams.get("state");
+  if (!state || !/^[0-9a-f-]{36}$/.test(state)) return back("failed");
+  try {
+    const row = await env.DB.prepare("DELETE FROM portal_data WHERE id=? AND json_extract(data,'$.state')=? AND json_extract(data,'$.expires')>? RETURNING data")
+      .bind(DRIVE_PENDING,state,Date.now()).first();
+    const code = url.searchParams.get("code");
+    if (!row || !code) return back("failed");
+    const pending = JSON.parse(row.data);
+    const account = await env.DB.prepare("SELECT role,active FROM team_users WHERE member_id=?").bind(pending.owner).first();
+    if (account?.role !== "admin" || Number(account.active) !== 1) return back("failed");
+    const tokens = await driveTokens(env,{grant_type:"authorization_code",code,redirect_uri:DRIVE_CALLBACK,code_verifier:pending.verifier});
+    if (!tokens?.refresh_token || !tokens.access_token) return back("failed");
+    const existing = await env.DB.prepare("SELECT data FROM portal_data WHERE id=?").bind(DRIVE_CONNECTION).first();
+    let id = existing ? JSON.parse(existing.data).folder : null;
+    if (id) {
+      const previous = await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?fields=trashed,capabilities(canAddChildren)", {
+        headers:{Authorization:"Bearer "+tokens.access_token}
+      });
+      const folder = previous.ok ? await previous.json() : null;
+      if (!folder || folder.trashed || !folder.capabilities?.canAddChildren) return back("failed");
+    } else {
+      const folder = await fetch("https://www.googleapis.com/drive/v3/files?fields=id",{
+        method:"POST",headers:{Authorization:"Bearer "+tokens.access_token,"Content-Type":"application/json"},
+        body:JSON.stringify({name:"Digital Department HUB Uploads",mimeType:"application/vnd.google-apps.folder"})
+      });
+      if (!folder.ok) return back("failed");
+      id = (await folder.json()).id;
+      if (!id) return back("failed");
+    }
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({name:"AES-GCM",iv},await driveKey(env),utf8(tokens.refresh_token));
+    await driveStore(env,DRIVE_CONNECTION,{folder:id,iv:[...iv],token:[...new Uint8Array(encrypted)]});
+    return back("connected");
+  } catch (_) { return back("failed"); }
+}
+async function handleDrive(request, url, env, user, origin) {
+  const reply = (data,status=200)=>jsonResponse(data,status,origin);
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) return reply({error:"Drive credentials are missing."},503);
+  try {
+    if (url.pathname === "/drive/connect" && request.method === "POST") {
+      if (user.role !== "admin") return reply({error:"Admin access required."},403);
+      const state=crypto.randomUUID();
+      const verifier=crypto.randomUUID().replace(/-/g,"")+crypto.randomUUID().replace(/-/g,"");
+      const hash=new Uint8Array(await crypto.subtle.digest("SHA-256",utf8(verifier)));
+      const challenge=btoa(String.fromCharCode(...hash)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+      await driveStore(env,DRIVE_PENDING,{state,verifier,owner:user.memberId,expires:Date.now()+600000});
+      const params=new URLSearchParams({client_id:env.GOOGLE_CLIENT_ID,redirect_uri:DRIVE_CALLBACK,response_type:"code",scope:DRIVE_SCOPE,access_type:"offline",prompt:"consent",state,code_challenge:challenge,code_challenge_method:"S256"});
+      return reply({url:"https://accounts.google.com/o/oauth2/v2/auth?"+params});
+    }
+    const row=await env.DB.prepare("SELECT data FROM portal_data WHERE id=?").bind(DRIVE_CONNECTION).first();
+    const connection=row?JSON.parse(row.data):null;
+    if (url.pathname === "/drive/status" && request.method === "GET") {
+      return reply({connected:!!connection,admin:user.role==="admin",folder:connection?"https://drive.google.com/drive/folders/"+encodeURIComponent(connection.folder):null});
+    }
+    if (url.pathname !== "/drive/upload" || request.method !== "POST") return reply({error:"Not found."},404);
+    if (!connection) return reply({error:"Ask an admin to connect Google Drive first."},409);
+    const type=request.headers.get("Content-Type") || "";
+    const size=Number(request.headers.get("Content-Length"));
+    const name=(url.searchParams.get("name")||"").trim();
+    if (!/^(image\/(jpeg|png|webp|gif)|video\/(mp4|quicktime|webm))$/.test(type) || !name || name.length>180 || /[\x00-\x1f]/.test(name)) return reply({error:"Choose a supported image or video with a valid filename."},400);
+    if (!Number.isInteger(size) || size<1 || size>DRIVE_LIMIT) return reply({error:"Choose a file up to 20 MB."},413);
+    const file=await request.blob();
+    if (file.size!==size || file.size>DRIVE_LIMIT) return reply({error:"Invalid upload size."},413);
+    const decoded=await crypto.subtle.decrypt({name:"AES-GCM",iv:Uint8Array.from(connection.iv)},await driveKey(env),Uint8Array.from(connection.token));
+    const tokens=await driveTokens(env,{grant_type:"refresh_token",refresh_token:new TextDecoder().decode(decoded)});
+    if (!tokens?.access_token) return reply({error:"Drive authorization expired. Ask an admin to reconnect Drive."},409);
+    const init=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id",{
+      method:"POST",redirect:"error",
+      headers:{Authorization:"Bearer "+tokens.access_token,"Content-Type":"application/json","X-Upload-Content-Type":type,"X-Upload-Content-Length":String(size)},
+      body:JSON.stringify({name,parents:[connection.folder],mimeType:type})
+    });
+    const location=init.headers.get("Location");
+    if (!init.ok || !location) return reply({error:"Drive could not start the upload. Check folder access."},502);
+    const uploadUrl=new URL(location);
+    if (uploadUrl.origin!=="https://www.googleapis.com" || !uploadUrl.pathname.startsWith("/upload/drive/")) return reply({error:"Unexpected Drive upload address."},502);
+    const result=await fetch(uploadUrl,{method:"PUT",redirect:"error",headers:{"Content-Type":type},body:file});
+    if (!result.ok) return reply({error:"Drive rejected the upload. Check available storage and folder access."},502);
+    const {id}=await result.json();
+    if (!id) return reply({error:"Drive did not confirm the upload."},502);
+    return reply({url:"https://drive.google.com/file/d/"+encodeURIComponent(id)+"/view"});
+  } catch (_) {return reply({error:"Drive request failed. Try again or ask an admin to reconnect."},502);}
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
     const url = new URL(request.url);
     if (origin && origin !== ALLOWED_ORIGIN) return jsonResponse({ error: "Origin not allowed" }, 403, origin);
+
+    if (url.pathname === "/auth/google/callback" && request.method === "GET") return driveCallback(url, env);
 
     if (request.method === "OPTIONS") {
       if (origin !== ALLOWED_ORIGIN) return jsonResponse({ error: "Origin not allowed" }, 403, origin);
@@ -314,6 +422,7 @@ export default {
     const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
     const user = env.SESSION_SECRET && bearer ? await verifySession(bearer, env.SESSION_SECRET, env.DB) : null;
     if (!user) return jsonResponse({ error: "Login required or session expired" }, 401, origin);
+    if (url.pathname.startsWith("/drive/")) return handleDrive(request, url, env, user, origin);
 
     if (url.pathname === "/auth/users" && request.method === "GET") {
       if (user.role !== "admin") return jsonResponse({ error: "Admin access required" }, 403, origin);

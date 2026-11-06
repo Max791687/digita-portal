@@ -2089,6 +2089,131 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
   <script src="./production-pipeline.js"></script>
   <script src="./my-workspace.js"></script>
 
+<script>
+(() => {
+  const api = CLOUD_API.replace(/\/workspace$/, "");
+  const settings = document.createElement("div");
+  settings.className = "mx-auto max-w-7xl px-4 py-2 flex items-center gap-3 flex-wrap text-xs text-slate-300";
+  settings.style.display = "none";
+  document.querySelector("header").after(settings);
+  const connect = document.createElement("button");
+  connect.type = "button";
+  connect.className = "rounded-lg border border-slate-600 px-3 py-2";
+  connect.textContent = "Connect Google Drive";
+  const folder = document.createElement("a");
+  folder.target = "_blank";
+  folder.rel = "noopener noreferrer";
+  folder.textContent = "Open uploads folder";
+  folder.hidden = true;
+  const note = document.createElement("span");
+  note.setAttribute("role", "status");
+  settings.append(connect, folder, note);
+  const result = new URL(location.href);
+  if (result.searchParams.has("drive")) {
+    note.textContent = result.searchParams.get("drive") === "connected"
+      ? "Drive connected. Share the uploads folder with your team in Google Drive."
+      : "Could not connect Drive. Try again and check Google OAuth settings.";
+    result.searchParams.delete("drive");
+    history.replaceState(null, "", result);
+  }
+  async function call(path, options = {}) {
+    const response = await fetch(api + path, {...options,headers:{...authHeaders(),...options.headers}});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Drive is unavailable. Check the Worker deployment.");
+    return data;
+  }
+  connect.onclick = async () => {
+    connect.disabled = true;
+    try { location.assign((await call("/drive/connect",{method:"POST"})).url); }
+    catch (error) { note.textContent = error.message; connect.disabled = false; }
+  };
+  let session = "";
+  let connected = false;
+  let controls = [];
+  function render() {
+    settings.style.display = currentUser && isAdmin() ? "" : "none";
+    for (const control of controls) control.button.hidden = !connected || control.field.disabled || control.field.readOnly;
+  }
+  for (const id of ["taskDocLinkInput","ppOutput"]) {
+    const field = document.getElementById(id);
+    if (!field) continue;
+    const row = document.createElement("div");
+    row.className = "mt-2 flex flex-wrap gap-2 items-center text-xs text-slate-300";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "rounded-lg border border-slate-600 px-3 py-2";
+    button.textContent = "Upload to Drive";
+    button.hidden = true;
+    const status = document.createElement("span");
+    status.setAttribute("role","status");
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm";
+    picker.hidden = true;
+    row.append(button,status,picker);
+    field.after(row);
+    controls.push({button,field});
+    new MutationObserver(render).observe(field,{attributes:true,attributeFilter:["disabled","readonly"]});
+    button.onclick = () => picker.click();
+    picker.onchange = async () => {
+      const file = picker.files[0];
+      picker.value = "";
+      if (!file || !currentUser || field.disabled || field.readOnly) return;
+      if (!file.size || file.size > 20 * 1024 * 1024) { status.textContent = "Choose a file up to 20 MB."; return; }
+      const owner = authToken;
+      const original = field.value;
+      const dialog = field.closest("#productionReviewModal, #taskModal");
+      let changed = false;
+      const observer = new MutationObserver(() => { changed = true; });
+      if (dialog) observer.observe(dialog,{attributes:true,attributeFilter:["class"]});
+      button.disabled = true;
+      status.textContent = "Uploading…";
+      try {
+        const {url} = await call("/drive/upload?name="+encodeURIComponent(file.name),{
+          method:"POST",headers:{"Content-Type":file.type},body:file
+        });
+        if (authToken !== owner) return;
+        if (!changed && field.value === original && !field.disabled && !field.readOnly) {
+          field.value = url;
+          field.dispatchEvent(new Event("input",{bubbles:true}));
+          status.textContent = "Uploaded. Save the task or submit it to keep this link.";
+        } else {
+          const link = document.createElement("a");
+          link.href = url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "Open uploaded file";
+          status.replaceChildren("Uploaded. Copy the link into the intended task. ",link);
+        }
+      } catch (error) { if (authToken === owner) status.textContent = error.message; }
+      finally { observer.disconnect(); button.disabled = false; }
+    };
+  }
+  async function refresh() {
+    const token = currentUser ? authToken : "";
+    if (token !== session) {
+      session = token;
+      connected = false;
+      folder.hidden = true;
+      render();
+    }
+    if (!token || connected) return;
+    try {
+      const data = await call("/drive/status");
+      if (token !== authToken) return;
+      connected = data.connected;
+      folder.hidden = !data.folder;
+      if (data.folder) folder.href = data.folder;
+      connect.textContent = connected ? "Reconnect Google Drive" : "Connect Google Drive";
+      render();
+    } catch (_) {}
+  }
+  render();
+  void refresh();
+  setInterval(refresh,10000);
+})();
+</script>
+
 </body>
 </html>
 
