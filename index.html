@@ -974,6 +974,8 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
               const merged = { ...cloudTask, status: localTask.status };
               if (Object.prototype.hasOwnProperty.call(localTask, 'progress')) merged.progress = localTask.progress;
               if (Object.prototype.hasOwnProperty.call(localTask, 'outputLink')) merged.outputLink = localTask.outputLink;
+              const history = productionOutputHistory(cloudTask, merged.outputLink);
+              if (history.length > (cloudTask.outputHistory?.length || 0)) merged.outputHistory = history;
               for (const field of ['pipelineStage','reviewSubmittedAt']) if (Object.prototype.hasOwnProperty.call(localTask, field)) merged[field] = localTask[field];
               if (cloudTask.category === 'SCRIPT WRITING' && ['shweta','vanita'].includes(currentUser.memberId)) { merged.scriptText = localTask.scriptText; if (localTask.scriptWorkspace !== undefined) merged.scriptWorkspace = localTask.scriptWorkspace; if (localTask.scriptReview !== undefined) merged.scriptReview = localTask.scriptReview; }
               return merged;
@@ -1548,6 +1550,8 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       const t = tasks.find(x => x.id === id);
       if (t && (isAdmin() || isOwnTask(t))) {
         if ((link || '').trim() !== (t.outputLink || '') && typeof syncProductionOutputChange === 'function') syncProductionOutputChange(t);
+        const history = productionOutputHistory(t, (link || '').trim());
+        if (history.length > (t.outputHistory?.length || 0)) t.outputHistory = history;
         t.outputLink = (link || '').trim();
         pushToCloud();
       }

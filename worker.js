@@ -13,7 +13,7 @@ const ALLOWED_MEMBERS = {
   ashish: "Ashish",
   test: "Test"
 };
-const EDITABLE_MEMBER_FIELDS = ["status", "progress", "outputLink", "pipelineStage", "reviewSubmittedAt"];
+const EDITABLE_MEMBER_FIELDS = ["status", "progress", "outputLink", "outputHistory", "pipelineStage", "reviewSubmittedAt"];
 const ALLOWED_STATUSES = ["pending", "in_progress", "changes_required", "completed"];
 
 function jsonResponse(data, status, origin) {
@@ -167,7 +167,7 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
         !Number.isFinite(next.createdAt) || Object.prototype.hasOwnProperty.call(next, "progress")) return false;
       if (next.scriptReview !== undefined && next.scriptReview !== "draft") return false;
       if (next.pipelineStage !== undefined && !["script","shoot","production"].includes(next.pipelineStage)) return false;
-      if (["approvalAt","approvalBy","reviewSubmittedAt","revisionNotes","revisionAt","revisionBy"].some(k=>Object.hasOwn(next,k))) return false;
+      if (["approvalAt","approvalBy","reviewSubmittedAt","revisionNotes","revisionAt","revisionBy","outputHistory"].some(k=>Object.hasOwn(next,k))) return false;
       continue;
     }
     if (normalizeName(old.assignedTo) !== normalizeName(user.displayName)) {
@@ -175,6 +175,16 @@ function isMemberTaskUpdateAllowed(previous, incoming, user) {
       continue;
     }
     if (!validMemberPipelineUpdate(old, next)) return false;
+    const history = Array.isArray(old.outputHistory) ? old.outputHistory : [];
+    const revisionAt=old.revisionAt||null;
+    const feedback=history[history.length-1]?.revisionAt===revisionAt?"":String(old.revisionNotes||"").slice(0,3000);
+    if (JSON.stringify(old.outputHistory) !== JSON.stringify(next.outputHistory)) {
+      if (!Array.isArray(next.outputHistory) || old.outputLink === next.outputLink ||
+          typeof old.outputLink !== "string" || !/^https?:\/\//i.test(old.outputLink) ||
+          JSON.stringify(next.outputHistory) !== JSON.stringify([
+            ...history, {link:old.outputLink,feedback,revisionAt}
+          ])) return false;
+    }
     const writing = old.category === "SCRIPT WRITING" && ["shweta", "vanita"].includes(user.memberId);
     if (JSON.stringify(stripEditableFields(old, writing)) !== JSON.stringify(stripEditableFields(next, writing))) return false;
     if (writing) {

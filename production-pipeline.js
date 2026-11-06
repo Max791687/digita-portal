@@ -32,6 +32,16 @@ function syncWriterProductionReview(task, review) {
     task.revisionNotes=task.scriptFeedback || '';task.revisionBy=currentUser.displayName;task.revisionAt=new Date().toISOString();
   }
 }
+function productionVersionFeedback(task, history=task.outputHistory) {
+  const last=Array.isArray(history)?history[history.length-1]:null;
+  return last&&last.revisionAt===(task.revisionAt||null)?'':String(task.revisionNotes||'').slice(0,3000);
+}
+function productionOutputHistory(task, nextLink) {
+  const history=Array.isArray(task.outputHistory)?task.outputHistory:[];
+  const previous=productionSafeLink(task.outputLink);
+  if(!previous||task.outputLink===nextLink)return history;
+  return [...history,{link:task.outputLink,feedback:productionVersionFeedback(task,history),revisionAt:task.revisionAt||null}];
+}
 function syncProductionOutputChange(task) {
   if (['review','approved'].includes(getProductionStage(task))) {
     task.pipelineStage=productionWorkStage(task);task.status='in_progress';
@@ -64,7 +74,7 @@ function syncTaskProductionStatus(task, status) {
   $('tabWritersBtn').after(tabPipeline,tabReview);
   root.innerHTML=`<div class="rounded-2xl border border-[#29364d] bg-[#111827] p-4 sm:p-5"><div class="flex flex-wrap justify-between gap-3"><div><p class="text-xs uppercase tracking-widest text-teal-300">Team production</p><h2 id="ppHeading" class="text-2xl font-bold mt-1"></h2><p id="ppDescription" class="text-sm text-slate-400 mt-2"></p></div><button id="ppNewTask" class="${button} self-start">+ Content task</button></div><div class="grid sm:grid-cols-2 gap-3 my-5"><label class="text-xs">Search title / category<input id="ppSearch" type="search" class="${input}" placeholder="Find work…"></label><label class="text-xs">Assigned team member<select id="ppMember" class="${input}"><option value="all">All team</option>${team.map(n=>'<option>'+n+'</option>').join('')}</select></label></div><div id="ppStats" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4"></div><div id="ppReviewFilters" class="flex flex-wrap gap-2 mb-4"></div><p id="ppResults" class="text-xs text-slate-400 mb-3" role="status"></p><div id="ppBoard"></div></div>`;
   const modal=document.createElement('div');modal.id='productionReviewModal';modal.className='hidden fixed inset-0 z-[96] bg-black/80 backdrop-blur-sm p-4 overflow-y-auto';
-  modal.innerHTML=`<div class="max-w-4xl mx-auto my-4 rounded-2xl border border-[#29364d] bg-[#111827] p-5"><div class="flex justify-between items-start gap-3"><h2 id="ppTitle" class="text-xl font-bold"></h2><button id="ppClose" class="${button}" aria-label="Close production review">✕</button></div><p id="ppMeta" class="text-xs text-slate-400 mt-2"></p><div id="ppReferenceLinks" class="flex flex-wrap gap-2 my-4"></div><details id="ppScriptDetails" class="rounded-xl border border-[#29364d] p-3 my-4"><summary class="font-bold cursor-pointer">Read script & scene breakdown</summary><pre id="ppScript" class="whitespace-pre-wrap break-words text-sm font-sans text-slate-300 mt-3 max-h-96 overflow-y-auto"></pre></details><div class="grid sm:grid-cols-2 gap-3 my-4"><label class="text-xs">Output / review link<input id="ppOutput" type="url" maxlength="2048" class="${input}" placeholder="https://…"></label><label class="text-xs">Working stage<select id="ppStage" class="${input}"></select></label></div><p id="ppLatestFeedback" class="whitespace-pre-wrap text-sm text-amber-300 my-4"></p><label id="ppFeedbackWrap" class="block text-xs my-4">Admin feedback / revision notes<textarea id="ppFeedback" maxlength="3000" rows="4" class="${input}" placeholder="Add clear feedback; include timestamps for video revisions…"></textarea></label><p id="ppApproval" class="text-xs text-emerald-300 my-3"></p><div class="flex flex-wrap gap-2"><button id="ppSave" class="${button}">Save stage / link</button><button id="ppSubmit" class="${button} bg-teal-700">Submit for review</button><button id="ppApprove" class="${button} bg-emerald-700">Approve</button><button id="ppRevise" class="${button} bg-amber-700">Request revision</button><button id="ppEditTask" class="${button}">Edit task / reassign</button></div><p id="ppMessage" class="text-sm text-amber-300 mt-4" role="status"></p></div>`;
+  modal.innerHTML=`<div class="max-w-4xl mx-auto my-4 rounded-2xl border border-[#29364d] bg-[#111827] p-5"><div class="flex justify-between items-start gap-3"><h2 id="ppTitle" class="text-xl font-bold"></h2><button id="ppClose" class="${button}" aria-label="Close production review">✕</button></div><p id="ppMeta" class="text-xs text-slate-400 mt-2"></p><div id="ppReferenceLinks" class="flex flex-wrap gap-2 my-4"></div><details id="ppScriptDetails" class="rounded-xl border border-[#29364d] p-3 my-4"><summary class="font-bold cursor-pointer">Read script & scene breakdown</summary><pre id="ppScript" class="whitespace-pre-wrap break-words text-sm font-sans text-slate-300 mt-3 max-h-96 overflow-y-auto"></pre></details><div class="grid sm:grid-cols-2 gap-3 my-4"><label class="text-xs">Output / review link<input id="ppOutput" type="url" maxlength="2048" class="${input}" placeholder="https://…"></label><label class="text-xs">Working stage<select id="ppStage" class="${input}"></select></label></div><section id="ppVersions" class="hidden rounded-xl border border-[#29364d] p-3 my-4"><h3 class="font-bold">File versions</h3><div id="ppVersionList" class="grid gap-2 mt-2"></div></section><div id="ppTimestampWrap" class="hidden flex flex-wrap gap-2 items-end"><label class="text-xs">Video timestamp<input id="ppTimestamp" class="${input}" placeholder="MM:SS or HH:MM:SS" maxlength="8"></label><button id="ppAddTimestamp" type="button" class="${button}">Insert timestamp in feedback</button></div><p id="ppLatestFeedback" class="whitespace-pre-wrap text-sm text-amber-300 my-4"></p><label id="ppFeedbackWrap" class="block text-xs my-4">Admin feedback / revision notes<textarea id="ppFeedback" maxlength="3000" rows="4" class="${input}" placeholder="Add clear feedback; include timestamps for video revisions…"></textarea></label><p id="ppApproval" class="text-xs text-emerald-300 my-3"></p><div class="flex flex-wrap gap-2"><button id="ppSave" class="${button}">Save stage / link</button><button id="ppSubmit" class="${button} bg-teal-700">Submit for review</button><button id="ppApprove" class="${button} bg-emerald-700">Approve</button><button id="ppRevise" class="${button} bg-amber-700">Request revision</button><button id="ppEditTask" class="${button}">Edit task / reassign</button></div><p id="ppMessage" class="text-sm text-amber-300 mt-4" role="status"></p></div>`;
   document.body.append(modal);
   const label=stage=>PRODUCTION_PIPELINE_STAGES.find(([id])=>id===stage)?.[1]||stage;
   const canChange=t=>isAdmin()||isOwnTask(t);
@@ -96,6 +106,26 @@ function syncTaskProductionStatus(task, status) {
     $('ppMeta').textContent=(t.assignedTo||'Unassigned')+' · '+(t.category||'Content')+' · '+label(getProductionStage(t))+' · Due: '+(t.dueDate||'Not set');
     $('ppReferenceLinks').replaceChildren();
     addLink($('ppReferenceLinks'),'Open current output',t.outputLink);
+    const versions=Array.isArray(t.outputHistory)?t.outputHistory.slice():[];
+    const hasCurrent=!!productionSafeLink(t.outputLink);
+    if(hasCurrent)versions.push({link:t.outputLink,feedback:productionVersionFeedback(t)});
+    $('ppVersions').classList.toggle('hidden',!versions.length);
+    $('ppVersionList').replaceChildren();
+    versions.forEach((version,index)=>{
+      const row=document.createElement('div');
+      const current=hasCurrent&&index===versions.length-1;
+      const final=current&&getProductionStage(t)==='approved';
+      addLink(row,'V'+(index+1)+(final?' · Final':current?' · Current':''),version.link);
+      if(version.feedback){
+        const note=document.createElement('p');
+        note.className='whitespace-pre-wrap break-words text-sm text-amber-300 mt-1';
+        note.textContent=version.feedback;
+        row.append(note);
+      }
+      $('ppVersionList').prepend(row);
+    });
+    $('ppTimestamp').value='';
+    $('ppTimestampWrap').classList.toggle('hidden',!isAdmin()||!hasCurrent||t.category==='SCRIPT WRITING');
     addLink($('ppReferenceLinks'),'Reference document',t.docLink);
     addLink($('ppReferenceLinks'),'Footage',t.footageLink);
     const scenes=Array.isArray(t.scriptWorkspace?.scenes)?t.scriptWorkspace.scenes:[];
@@ -107,7 +137,7 @@ function syncTaskProductionStatus(task, status) {
     const current=getProductionStage(t);
     if(['revision','approved'].includes(current)){const o=document.createElement('option');o.value=current;o.textContent=label(current);$('ppStage').append(o);}
     $('ppStage').value=current;$('ppStage').disabled=!canChange(t);
-    $('ppFeedback').value=t.revisionNotes||t.scriptFeedback||'';
+    $('ppFeedback').value=t.category==='SCRIPT WRITING'?(t.revisionNotes||t.scriptFeedback||''):productionVersionFeedback(t);
     $('ppLatestFeedback').textContent=(t.revisionNotes||t.scriptFeedback)?'Latest feedback'+(t.revisionBy?' from '+t.revisionBy:'')+':\n'+(t.revisionNotes||t.scriptFeedback):'No revision feedback yet.';
     $('ppFeedbackWrap').classList.toggle('hidden',!isAdmin());
     $('ppApproval').textContent=current==='approved'?'Approved'+(t.approvalBy?' by '+t.approvalBy:'')+(t.approvalAt?' · '+date(t.approvalAt):''):t.reviewSubmittedAt?'Submitted for review · '+date(t.reviewSubmittedAt):'';
@@ -125,6 +155,18 @@ function syncTaskProductionStatus(task, status) {
     modal.classList.remove('hidden');
   }
   window.openProductionTask = id => openTask(String(id));
+  $('ppAddTimestamp').onclick=()=>{
+    const timestamp=$('ppTimestamp').value.trim();
+    if(!/^(?:\d{1,2}:)?\d{1,2}:[0-5]\d$/.test(timestamp)||timestamp.split(':').length===3&&Number(timestamp.split(':')[1])>59)
+      return notify('Enter a timestamp like 00:14 or 1:02:35.');
+    const notes=$('ppFeedback');
+    const next=notes.value+(notes.value&&!notes.value.endsWith('\n')?'\n':'')+timestamp+' — ';
+    if(next.length>notes.maxLength)return notify('Feedback is full.');
+    notes.value=next;
+    $('ppTimestamp').value='';
+    notes.focus();
+    remember();
+  };
   async function save(action) {
     if(saving||!opened)return;
     const t=tasks.find(t=>String(t.id)===opened);
@@ -143,14 +185,17 @@ function syncTaskProductionStatus(task, status) {
     const candidate={...t,outputLink:link};
     if(['review','approved'].includes(stage)&&!productionReviewReady(candidate))return notify(t.category==='SCRIPT WRITING'?'Write and save the script in Writer Studio before submitting.':'Add the output / review link before submitting or approving.');
     if(!isAdmin()&&stage==='approved'&&getProductionStage(t)!=='approved')return;
+    if(['approve','revise'].includes(action)&&link!==(t.outputLink||''))return notify('Save the new output link before reviewing it.');
     const patch={outputLink:link,pipelineStage:stage};
+    const history=productionOutputHistory(t,link);
+    if(history.length>(t.outputHistory?.length||0))patch.outputHistory=history;
     const now=new Date().toISOString();
     if(stage==='review'&&getProductionStage(t)!=='review'||action==='submit'){patch.reviewSubmittedAt=now;patch.status='in_progress';if(canWriteScript(t))patch.scriptReview='submitted';}
     if(['script','shoot','production'].includes(stage)) {patch.status='in_progress';if(canWriteScript(t))patch.scriptReview='draft';}
     if(action==='approve') {patch.status='completed';patch.progress=100;patch.approvalBy=currentUser.displayName;patch.approvalAt=now;if(t.category==='SCRIPT WRITING')patch.scriptReview='approved';}
     if(action==='revise') {patch.status='changes_required';patch.revisionNotes=feedback;patch.revisionBy=currentUser.displayName;patch.revisionAt=now;if(t.category==='SCRIPT WRITING'){patch.scriptReview='changes_required';patch.scriptFeedback=feedback;}}
     // Saving optional feedback never grants approval or changes revision status.
-    if(isAdmin()&&action==='save'&&feedback!==(t.revisionNotes||t.scriptFeedback||'')){patch.revisionNotes=feedback;patch.revisionBy=currentUser.displayName;patch.revisionAt=now;if(t.category==='SCRIPT WRITING')patch.scriptFeedback=feedback;}
+    if(isAdmin()&&action==='save'&&feedback!==(t.category==='SCRIPT WRITING'?(t.revisionNotes||t.scriptFeedback||''):productionVersionFeedback(t))){patch.revisionNotes=feedback;patch.revisionBy=currentUser.displayName;patch.revisionAt=now;if(t.category==='SCRIPT WRITING')patch.scriptFeedback=feedback;}
     remember();saving=true;const owner=currentUser.memberId;
     ['ppSave','ppSubmit','ppApprove','ppRevise'].forEach(id=>$(id).disabled=true);
     ['ppOutput','ppStage','ppFeedback'].forEach(id=>$(id).disabled=true);
