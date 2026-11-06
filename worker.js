@@ -252,6 +252,8 @@ async function handleWriterAI(request, env, user, origin) {
 const DRIVE_CALLBACK = "https://digital-team-sync-staging.max791687.workers.dev/auth/google/callback";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_LIMIT = 20 * 1024 * 1024;
+const DRIVE_LARGE_LIMIT = 10_000_000_000;
+const DRIVE_CHUNK_SIZE = 16 * 1024 * 1024;
 const DRIVE_CONNECTION = "drive:connection:v1";
 const DRIVE_PENDING = "drive:pending:v1";
 
@@ -321,20 +323,53 @@ async function handleDrive(request, url, env, user, origin) {
       const params=new URLSearchParams({client_id:env.GOOGLE_CLIENT_ID,redirect_uri:DRIVE_CALLBACK,response_type:"code",scope:DRIVE_SCOPE,access_type:"offline",prompt:"consent",state,code_challenge:challenge,code_challenge_method:"S256"});
       return reply({url:"https://accounts.google.com/o/oauth2/v2/auth?"+params});
     }
+    if (url.pathname === "/drive/upload/chunk" && request.method === "POST") {
+      const ticket=url.searchParams.get("ticket") || "";
+      let upload;
+      try {
+        const bytes=base64UrlToBytes(ticket);
+        const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:bytes.slice(0,12),additionalData:utf8("drive-upload")},await driveKey(env),bytes.slice(12));
+        upload=JSON.parse(new TextDecoder().decode(clear));
+      } catch (_) { return reply({error:"Invalid upload session."},400); }
+      if (upload.owner!==user.memberId || upload.expires<Date.now()) return reply({error:"Upload session expired or belongs to another member."},403);
+      const offset=Number(url.searchParams.get("offset"));
+      if (!Number.isInteger(offset) || offset<0 || offset>=upload.size || offset%(256*1024)!==0) return reply({error:"Invalid upload offset."},400);
+      const length=Math.min(DRIVE_CHUNK_SIZE,upload.size-offset);
+      if (Number(request.headers.get("Content-Length"))!==length) return reply({error:"Invalid chunk size."},413);
+      const chunk=await request.blob();
+      if (chunk.size!==length) return reply({error:"Incomplete upload chunk."},400);
+      const result=await fetch(upload.location,{method:"PUT",redirect:"manual",headers:{
+        "Content-Type":upload.type,"Content-Range":`bytes ${offset}-${offset+length-1}/${upload.size}`
+      },body:chunk});
+      if (result.status===308) {
+        const range=/^bytes=0-(\d+)$/.exec(result.headers.get("Range") || "");
+        const next=range ? Number(range[1])+1 : 0;
+        if (next<=offset || next>offset+length || next>=upload.size || next%(256*1024)!==0) return reply({error:"Drive did not confirm chunk progress. Start the upload again."},502);
+        return reply({next});
+      }
+      if (result.ok && offset+length===upload.size) {
+        const {id}=await result.json();
+        if (id) return reply({url:"https://drive.google.com/file/d/"+encodeURIComponent(id)+"/view"});
+      }
+      return reply({error:"Drive could not finish the upload. Check available storage and try again."},502);
+    }
     const row=await env.DB.prepare("SELECT data FROM portal_data WHERE id=?").bind(DRIVE_CONNECTION).first();
     const connection=row?JSON.parse(row.data):null;
     if (url.pathname === "/drive/status" && request.method === "GET") {
       return reply({connected:!!connection,admin:user.role==="admin",folder:connection?"https://drive.google.com/drive/folders/"+encodeURIComponent(connection.folder):null});
     }
-    if (url.pathname !== "/drive/upload" || request.method !== "POST") return reply({error:"Not found."},404);
+    const start=url.pathname === "/drive/upload/start";
+    if ((!start && url.pathname !== "/drive/upload") || request.method !== "POST") return reply({error:"Not found."},404);
     if (!connection) return reply({error:"Ask an admin to connect Google Drive first."},409);
-    const type=request.headers.get("Content-Type") || "";
-    const size=Number(request.headers.get("Content-Length"));
-    const name=(url.searchParams.get("name")||"").trim();
+    const metadata=start ? await readJson(request) : null;
+    const type=start ? metadata?.type : request.headers.get("Content-Type") || "";
+    const size=start ? metadata?.size : Number(request.headers.get("Content-Length"));
+    const suppliedName=start ? metadata?.name : url.searchParams.get("name");
+    const name=typeof suppliedName==="string" ? suppliedName.trim() : "";
     if (!/^(image\/(jpeg|png|webp|gif)|video\/(mp4|quicktime|webm))$/.test(type) || !name || name.length>180 || /[\x00-\x1f]/.test(name)) return reply({error:"Choose a supported image or video with a valid filename."},400);
-    if (!Number.isInteger(size) || size<1 || size>DRIVE_LIMIT) return reply({error:"Choose a file up to 20 MB."},413);
-    const file=await request.blob();
-    if (file.size!==size || file.size>DRIVE_LIMIT) return reply({error:"Invalid upload size."},413);
+    if (!Number.isInteger(size) || size<1 || size>(start ? DRIVE_LARGE_LIMIT : DRIVE_LIMIT)) return reply({error:start ? "Choose a file up to 10 GB." : "Choose a file up to 20 MB."},413);
+    const file=start ? null : await request.blob();
+    if (file && file.size!==size) return reply({error:"Invalid upload size."},413);
     const decoded=await crypto.subtle.decrypt({name:"AES-GCM",iv:Uint8Array.from(connection.iv)},await driveKey(env),Uint8Array.from(connection.token));
     const tokens=await driveTokens(env,{grant_type:"refresh_token",refresh_token:new TextDecoder().decode(decoded)});
     if (!tokens?.access_token) return reply({error:"Drive authorization expired. Ask an admin to reconnect Drive."},409);
@@ -347,6 +382,15 @@ async function handleDrive(request, url, env, user, origin) {
     if (!init.ok || !location) return reply({error:"Drive could not start the upload. Check folder access."},502);
     const uploadUrl=new URL(location);
     if (uploadUrl.origin!=="https://www.googleapis.com" || !uploadUrl.pathname.startsWith("/upload/drive/")) return reply({error:"Unexpected Drive upload address."},502);
+    if (start) {
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const payload={location:uploadUrl.href,owner:user.memberId,size,type,expires:Date.now()+24*60*60*1000};
+      const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv,additionalData:utf8("drive-upload")},await driveKey(env),utf8(JSON.stringify(payload)));
+      const bytes=new Uint8Array(iv.length+encrypted.byteLength);
+      bytes.set(iv);
+      bytes.set(new Uint8Array(encrypted),iv.length);
+      return reply({ticket:bytesToBase64Url(bytes),chunkSize:DRIVE_CHUNK_SIZE});
+    }
     const result=await fetch(uploadUrl,{method:"PUT",redirect:"error",headers:{"Content-Type":type},body:file});
     if (!result.ok) return reply({error:"Drive rejected the upload. Check available storage and folder access."},502);
     const {id}=await result.json();

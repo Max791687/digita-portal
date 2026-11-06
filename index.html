@@ -2159,7 +2159,7 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       const file = picker.files[0];
       picker.value = "";
       if (!file || !currentUser || field.disabled || field.readOnly) return;
-      if (!file.size || file.size > 20 * 1024 * 1024) { status.textContent = "Choose a file up to 20 MB."; return; }
+      if (!file.size || file.size > 10_000_000_000) { status.textContent = "Choose a file up to 10 GB."; return; }
       const owner = authToken;
       const original = field.value;
       const dialog = field.closest("#productionReviewModal, #taskModal");
@@ -2169,9 +2169,27 @@ function stopAutoSync() { if (autoSyncTimer) clearInterval(autoSyncTimer); autoS
       button.disabled = true;
       status.textContent = "Uploading…";
       try {
-        const {url} = await call("/drive/upload?name="+encodeURIComponent(file.name),{
-          method:"POST",headers:{"Content-Type":file.type},body:file
+        const {ticket,chunkSize} = await call("/drive/upload/start",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({name:file.name,type:file.type,size:file.size})
         });
+        if (!ticket || !Number.isInteger(chunkSize) || chunkSize<=0) throw new Error("Drive upload could not start.");
+        let offset = 0;
+        let url;
+        while (offset < file.size && !url) {
+          if (authToken !== owner) return;
+          const end = Math.min(offset+chunkSize,file.size);
+          const params = new URLSearchParams({ticket,offset:String(offset)});
+          const part = await call("/drive/upload/chunk?"+params,{
+            method:"POST",headers:{"Content-Type":file.type},body:file.slice(offset,end,file.type)
+          });
+          url = part.url;
+          if (!url && (!Number.isInteger(part.next) || part.next<=offset || part.next>end)) throw new Error("Drive did not confirm upload progress.");
+          if (!url) {
+            offset = part.next;
+            status.textContent = "Uploading… "+Math.floor(offset/file.size*100)+"%";
+          }
+        }
         if (authToken !== owner) return;
         if (!changed && field.value === original && !field.disabled && !field.readOnly) {
           field.value = url;
